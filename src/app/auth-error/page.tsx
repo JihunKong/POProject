@@ -29,7 +29,7 @@ function AuthErrorContent() {
       case 'CredentialsSignin':
         return '로그인 정보가 올바르지 않습니다.';
       case 'AccessDenied':
-        return '접근이 거부되었습니다. @wando.hs.kr 도메인 계정만 사용 가능합니다.';
+        return '접근이 거부되었습니다.';
       default:
         return '인증 중 알 수 없는 오류가 발생했습니다.';
     }
@@ -46,11 +46,6 @@ function AuthErrorContent() {
           <p className="text-gray-600">
             {getErrorMessage()}
           </p>
-          {error === 'AccessDenied' && (
-            <p className="text-sm text-gray-500 mt-2">
-              완도고등학교 학생 및 교직원만 이용할 수 있습니다.
-            </p>
-          )}
         </div>
 
         <div className="space-y-3">

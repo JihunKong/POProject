@@ -13,14 +13,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async signIn({ user }) {
-      // 학교 도메인 확인
-      const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN || 'wando.hs.kr';
-      const email = user.email || '';
-      
-      if (!email.endsWith(`@${allowedDomain}`)) {
-        return false; // 로그인 거부
-      }
-      
+      // 도메인 제한 제거 - 모든 Google 계정 허용
       return true;
     },
     async session({ session, token }) {
