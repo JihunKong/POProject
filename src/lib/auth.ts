@@ -19,23 +19,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session?.user && token.sub) {
-        // 데이터베이스에서 사용자 정보 가져오기
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: { 
-            id: true, 
-            role: true, 
-            studentId: true, 
-            classRoom: true 
-          },
-        });
-        
-        if (dbUser) {
-          session.user.id = dbUser.id;
-          session.user.role = dbUser.role;
-          session.user.studentId = dbUser.studentId;
-          session.user.classRoom = dbUser.classRoom;
-        }
+        session.user.id = token.sub;
       }
       
       return session;
