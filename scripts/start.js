@@ -1,15 +1,29 @@
-const { execSync } = require('child_process');
+const { spawn } = require('child_process');
 
 console.log('🔄 Checking database schema...');
 
-try {
-  // Try to run a simple query to check if tables exist
-  execSync('npx prisma db push --skip-generate', { stdio: 'inherit' });
-  console.log('✅ Database schema is up to date');
-} catch (error) {
-  console.error('❌ Failed to update database schema:', error.message);
-}
+// Run prisma db push
+const prisma = spawn('npx', ['prisma', 'db', 'push', '--skip-generate'], {
+  stdio: 'inherit',
+  env: process.env
+});
 
-// Start the Next.js server
-console.log('🚀 Starting Next.js server...');
-require('next/dist/cli/next-start');
+prisma.on('close', (code) => {
+  if (code === 0) {
+    console.log('✅ Database schema is up to date');
+  } else {
+    console.error('❌ Failed to update database schema');
+  }
+  
+  // Start the Next.js server
+  console.log('🚀 Starting Next.js server...');
+  const next = spawn('npm', ['run', 'start'], {
+    stdio: 'inherit',
+    env: process.env
+  });
+  
+  next.on('error', (err) => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });
+});
