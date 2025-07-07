@@ -13,8 +13,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       authorization: {
         params: {
           scope: 'openid email profile',
-          access_type: 'offline',
-          prompt: 'consent',
+          prompt: 'select_account', // 계정 선택 화면 표시
         },
       },
     }),
