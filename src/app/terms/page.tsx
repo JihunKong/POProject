@@ -8,16 +8,16 @@ export default function TermsPage() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">제1조 (목적)</h2>
             <p className="text-gray-600">
-              이 약관은 Pure Ocean 챗봇(이하 "서비스")이 제공하는 AI 코칭 서비스의 이용과 관련하여 서비스와 이용자의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.
+              이 약관은 Pure Ocean 챗봇(이하 &ldquo;서비스&rdquo;)이 제공하는 AI 코칭 서비스의 이용과 관련하여 서비스와 이용자의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.
             </p>
           </section>
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">제2조 (정의)</h2>
             <ul className="list-disc list-inside text-gray-600 space-y-2">
-              <li><strong>"서비스"</strong>란 Pure Ocean 챗봇이 제공하는 AI 기반 교육 코칭 서비스를 의미합니다.</li>
-              <li><strong>"이용자"</strong>란 이 약관에 따라 서비스가 제공하는 서비스를 받는 회원 및 비회원을 말합니다.</li>
-              <li><strong>"회원"</strong>이란 서비스에 개인정보를 제공하여 회원등록을 한 자로서, 서비스의 정보를 지속적으로 제공받으며, 서비스가 제공하는 서비스를 계속적으로 이용할 수 있는 자를 말합니다.</li>
+              <li><strong>&ldquo;서비스&rdquo;</strong>란 Pure Ocean 챗봇이 제공하는 AI 기반 교육 코칭 서비스를 의미합니다.</li>
+              <li><strong>&ldquo;이용자&rdquo;</strong>란 이 약관에 따라 서비스가 제공하는 서비스를 받는 회원 및 비회원을 말합니다.</li>
+              <li><strong>&ldquo;회원&rdquo;</strong>이란 서비스에 개인정보를 제공하여 회원등록을 한 자로서, 서비스의 정보를 지속적으로 제공받으며, 서비스가 제공하는 서비스를 계속적으로 이용할 수 있는 자를 말합니다.</li>
             </ul>
           </section>
 
