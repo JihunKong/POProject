@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth-helpers';
+import { auth } from '@/lib/auth';
 import { openai, SOCRATIC_SYSTEM_PROMPT } from '@/lib/openai';
 import { prisma } from '@/lib/prisma';
 
