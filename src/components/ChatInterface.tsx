@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useMutation, useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axios from 'axios';
 import { Message, Conversation } from '@/types';
+import { MessageCircle, HandMetal, Lightbulb, Waves, Target, Bot, User, Plus, Send, Info } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
@@ -104,9 +105,7 @@ function ChatInterfaceContent() {
           onClick={startNewConversation}
           className="btn-primary w-full mb-6 flex items-center justify-center gap-2"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <Plus className="w-5 h-5" />
           <span>새 대화 시작</span>
         </button>
         
@@ -142,7 +141,7 @@ function ChatInterfaceContent() {
         <div className="glass-light backdrop-blur-xl border-b border-white/20 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
-              <span className="text-xl">💬</span>
+              <MessageCircle className="w-6 h-6 text-white" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-800">Pure Ocean 프로젝트 도우미</h2>
@@ -171,21 +170,21 @@ function ChatInterfaceContent() {
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-2xl mx-auto">
                 <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-3xl flex items-center justify-center shadow-2xl float-animation">
-                  <span className="text-5xl">👋</span>
+                  <HandMetal className="w-12 h-12 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-4">안녕하세요! 무엇을 도와드릴까요?</h3>
                 <p className="text-gray-600 mb-8">해양 프로젝트에 대한 궁금한 점을 자유롭게 물어보세요</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="card-glass p-4 hover:scale-105 transition-transform cursor-pointer">
-                    <span className="text-2xl mb-2 block">💡</span>
+                    <Lightbulb className="w-8 h-8 mb-2 block text-yellow-500" />
                     <p className="text-sm font-medium text-gray-700">해양 플라스틱 문제를 어떻게 접근하면 좋을까요?</p>
                   </div>
                   <div className="card-glass p-4 hover:scale-105 transition-transform cursor-pointer">
-                    <span className="text-2xl mb-2 block">🌊</span>
+                    <Waves className="w-8 h-8 mb-2 block text-blue-500" />
                     <p className="text-sm font-medium text-gray-700">우리 지역 바다의 특별한 문제가 있을까요?</p>
                   </div>
                   <div className="card-glass p-4 hover:scale-105 transition-transform cursor-pointer">
-                    <span className="text-2xl mb-2 block">🎯</span>
+                    <Target className="w-8 h-8 mb-2 block text-red-500" />
                     <p className="text-sm font-medium text-gray-700">프로젝트 목표를 어떻게 설정하면 좋을까요?</p>
                   </div>
                 </div>
@@ -202,7 +201,7 @@ function ChatInterfaceContent() {
             >
               {message.role === 'assistant' && (
                 <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
-                  <span className="text-sm">🤖</span>
+                  <Bot className="w-5 h-5 text-white" />
                 </div>
               )}
               <div
@@ -226,7 +225,7 @@ function ChatInterfaceContent() {
               </div>
               {message.role === 'user' && (
                 <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl flex items-center justify-center shadow-md">
-                  <span className="text-sm">👤</span>
+                  <User className="w-5 h-5 text-white" />
                 </div>
               )}
             </div>
@@ -235,7 +234,7 @@ function ChatInterfaceContent() {
           {sendMessage.isPending && (
             <div className="flex gap-3 justify-start">
               <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md animate-pulse">
-                <span className="text-sm">🤖</span>
+                <Bot className="w-5 h-5 text-white" />
               </div>
               <div className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-md px-5 py-4 rounded-2xl">
                 <div className="loading-wave text-gray-400">
@@ -269,16 +268,12 @@ function ChatInterfaceContent() {
                 className="btn-primary px-8 flex items-center gap-2"
               >
                 <span>전송</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
+                <Send className="w-4 h-4" />
               </button>
             </div>
             <div className="flex items-center justify-center mt-3 text-xs text-gray-500">
               <span className="flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <Info className="w-3 h-3" />
                 Shift + Enter로 줄바꿈 가능
               </span>
             </div>

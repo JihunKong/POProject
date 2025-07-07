@@ -3,6 +3,7 @@
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { Waves, Target, Users, Trophy, MessageSquare } from 'lucide-react';
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -45,7 +46,7 @@ export default function Home() {
           {/* Hero section */}
           <div className="text-center mb-10">
             <div className="inline-flex items-center justify-center w-24 h-24 ocean-gradient rounded-3xl shadow-2xl mb-6 float-animation">
-              <span className="text-5xl drop-shadow-lg">🌊</span>
+              <Waves className="w-14 h-14 text-white drop-shadow-lg" />
             </div>
             <h1 className="text-5xl md:text-6xl font-bold mb-4">
               <span className="text-gradient-animate">Pure Ocean</span>
@@ -62,7 +63,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
             <div className="group card-glass hover:scale-105 transition-all duration-300 p-6 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow">
-                <span className="text-2xl">🎯</span>
+                <Target className="w-8 h-8 text-white" />
               </div>
               <h3 className="font-bold text-gray-800 mb-2">SDGs 연계</h3>
               <p className="text-sm text-gray-600">지속가능한 개발목표와 연결된 프로젝트 설계</p>
@@ -70,7 +71,7 @@ export default function Home() {
 
             <div className="group card-glass hover:scale-105 transition-all duration-300 p-6 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow">
-                <span className="text-2xl">💡</span>
+                <MessageSquare className="w-8 h-8 text-white" />
               </div>
               <h3 className="font-bold text-gray-800 mb-2">창의적 사고</h3>
               <p className="text-sm text-gray-600">융합적 사고로 혁신적인 해결책 도출</p>
@@ -78,7 +79,7 @@ export default function Home() {
 
             <div className="group card-glass hover:scale-105 transition-all duration-300 p-6 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow">
-                <span className="text-2xl">🤝</span>
+                <Users className="w-8 h-8 text-white" />
               </div>
               <h3 className="font-bold text-gray-800 mb-2">팀 협업</h3>
               <p className="text-sm text-gray-600">효과적인 프로젝트 진행과 팀워크 강화</p>
@@ -86,7 +87,7 @@ export default function Home() {
 
             <div className="group card-glass hover:scale-105 transition-all duration-300 p-6 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow">
-                <span className="text-2xl">🌊</span>
+                <Trophy className="w-8 h-8 text-white" />
               </div>
               <h3 className="font-bold text-gray-800 mb-2">해양 보호</h3>
               <p className="text-sm text-gray-600">실천 가능한 해양 환경 보호 방안</p>

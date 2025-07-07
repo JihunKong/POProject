@@ -3,6 +3,7 @@
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+import { Lock } from 'lucide-react';
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -21,7 +22,7 @@ function LoginContent() {
         <div className="glass-light rounded-3xl shadow-2xl p-10 backdrop-blur-xl">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-3xl shadow-2xl mb-6 pulse-animation">
-              <span className="text-3xl drop-shadow-lg">🔐</span>
+              <Lock className="w-10 h-10 text-white drop-shadow-lg" />
             </div>
             <h1 className="text-4xl font-bold mb-3">
               <span className="text-gradient-animate">로그인이 필요합니다</span>
