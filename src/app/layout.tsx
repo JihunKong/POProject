@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "Pure-Ocean Project - AI 챗봇",
   description: "완도고등학교 Pure-Ocean Project를 위한 소크라테스식 AI 코칭 챗봇",
   verification: {
-    google: "YOUR_GOOGLE_SITE_VERIFICATION_CODE", // Google Search Console에서 제공하는 코드로 교체
+    google: "5-NzFHPrzi4fhK9xrM0lBxoa5LdAG9qkpYqrE8Kl_Zc",
   },
 };
 
