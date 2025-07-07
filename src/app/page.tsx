@@ -111,6 +111,20 @@ export default function Home() {
             </p>
           </div>
         </div>
+
+        {/* Footer with links */}
+        <div className="mt-12 text-center text-sm text-gray-500">
+          <div className="flex items-center justify-center gap-4">
+            <a href="/privacy" className="hover:text-gray-700 transition-colors">
+              개인정보 처리방침
+            </a>
+            <span>•</span>
+            <a href="/terms" className="hover:text-gray-700 transition-colors">
+              서비스 이용약관
+            </a>
+          </div>
+          <p className="mt-2">© 2025 Pure Ocean Project. All rights reserved.</p>
+        </div>
       </div>
     </div>
   );
