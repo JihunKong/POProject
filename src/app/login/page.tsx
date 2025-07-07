@@ -73,7 +73,10 @@ function LoginContent() {
 
             <div className="text-center space-y-2">
               <p className="text-sm text-gray-600">
-                모든 Google 계정으로 로그인 가능합니다
+                학교 계정(@wando.hs.kr) 사용을 권장합니다
+              </p>
+              <p className="text-xs text-gray-500">
+                개인 Gmail은 연령 제한으로 접속이 제한될 수 있습니다
               </p>
               <p className="text-xs text-gray-500">
                 귀하의 정보는 안전하게 보호됩니다

@@ -10,17 +10,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          scope: 'openid email profile',
-          access_type: 'offline',
-          prompt: 'consent',
-        },
-      },
     }),
   ],
   callbacks: {
-    async signIn() {
+    async signIn({ user, account, profile }) {
+      console.log('=== 로그인 시도 디버그 정보 ===');
+      console.log('User:', user);
+      console.log('Account:', account);
+      console.log('Profile:', profile);
+      console.log('Email:', user.email);
+      console.log('Provider:', account?.provider);
+      console.log('========================');
+      
       // 모든 Google 계정 허용
       return true;
     },
@@ -46,4 +47,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: 'jwt',
   },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: true, // 디버그 모드 활성화
 });
