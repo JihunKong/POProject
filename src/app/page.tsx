@@ -10,26 +10,10 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (session) {
+    if (status === 'authenticated' && session) {
       router.push('/chat');
     }
-  }, [session, router]);
-
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen animated-gradient flex items-center justify-center">
-        <div className="text-center">
-          <div className="loading-wave text-white mb-4">
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-          <p className="text-white/80 font-medium">로딩 중...</p>
-        </div>
-      </div>
-    );
-  }
+  }, [session, status, router]);
 
   return (
     <div className="min-h-screen animated-gradient flex items-center justify-center p-4 relative overflow-hidden">
