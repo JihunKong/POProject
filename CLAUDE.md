@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Pure-Ocean Project is an educational platform for Wando High School students focused on ocean environment protection through project-based learning. The codebase contains two main applications:
+Pure Ocean is an educational platform for Wando High School students. "Pure Ocean" refers to the students themselves, not a project name. The codebase contains two main applications:
 
 1. **AI Research Paper Feedback System** (Python/Streamlit) - Located in `/chatbot-examples/`
-2. **Pure-Ocean Project Platform** (Next.js/TypeScript) - Documented in various `.md` files
+2. **Pure Ocean Platform** (Next.js/TypeScript) - AI coaching chatbot for students
 
 ## Common Development Commands
 
@@ -55,7 +55,7 @@ npx tsc --noEmit          # TypeScript type check
 ### System Components
 
 1. **Authentication Layer**
-   - NextAuth.js with Google OAuth (restricted to @wando.hs.kr domain)
+   - NextAuth.js with Google OAuth (open to all Google accounts)
    - Role-based access control: Student, Teacher, Admin
    - Session management with Prisma adapter
 
@@ -117,3 +117,4 @@ Both applications require specific environment variables:
 3. **Educational Context**: Features designed for high school project-based learning
 4. **Security**: No sensitive data in code, all secrets in environment variables
 5. **Deployment**: Railway for Next.js, Streamlit Cloud for Python app
+6. **Note**: "Pure Ocean" is the name for Wando High School students, not a project name

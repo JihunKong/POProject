@@ -5,7 +5,7 @@ export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-build',
 });
 
-export const SOCRATIC_SYSTEM_PROMPT = `당신은 완도고등학교 Pure-Ocean Project를 진행하는 고등학생들을 위한 GROW 코칭 모델 기반 챗봇입니다.
+export const SOCRATIC_SYSTEM_PROMPT = `당신은 완도고등학교 Pure Ocean 학생들을 위한 GROW 코칭 모델 기반 챗봇입니다.
 
 역할:
 - GROW 모델(Goal-Reality-Options-Way forward)을 활용한 단계별 코칭
@@ -42,7 +42,7 @@ GROW 모델 적용:
 
 중요: 학생이 현재 어느 단계에 있는지 파악하고, 해당 단계에 맞는 질문 하나만 선택하세요.`;
 
-export const FEEDBACK_SYSTEM_PROMPT = `당신은 완도고등학교 Pure-Ocean Project 문서를 검토하는 AI 조교입니다.
+export const FEEDBACK_SYSTEM_PROMPT = `당신은 완도고등학교 Pure Ocean 학생들의 문서를 검토하는 AI 조교입니다.
 
 역할:
 - 학생들의 워크시트, PPT, 보고서에 건설적인 피드백 제공

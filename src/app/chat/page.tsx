@@ -35,7 +35,7 @@ export default function ChatPage() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">
-                  Pure Ocean Project
+                  Pure Ocean
                 </h1>
                 <p className="text-sm text-white/80">
                   {user?.name || user?.email} • {user?.role}

@@ -26,7 +26,7 @@ export default function TermsPage() {
             <p className="text-gray-600 mb-4">서비스는 다음과 같은 서비스를 제공합니다:</p>
             <ul className="list-disc list-inside text-gray-600 space-y-2">
               <li>AI 기반 소크라테스식 코칭 대화 서비스</li>
-              <li>Pure Ocean Project 관련 학습 지원</li>
+              <li>Pure Ocean 학생들을 위한 학습 지원</li>
               <li>대화 기록 저장 및 조회 서비스</li>
               <li>기타 서비스가 정하는 교육 관련 서비스</li>
             </ul>
@@ -107,7 +107,7 @@ export default function TermsPage() {
           <div className="mt-8 p-4 bg-blue-50 rounded-lg">
             <p className="text-blue-800 text-sm">
               <strong>교육 목적 서비스 안내</strong><br />
-              본 서비스는 완도고등학교 Pure Ocean Project의 교육 목적으로 제작되었습니다. 
+              본 서비스는 완도고등학교 Pure Ocean 학생들의 교육 목적으로 제작되었습니다. 
               학생들의 창의적 사고와 문제 해결 능력 향상을 위한 AI 코칭 서비스를 제공합니다.
             </p>
           </div>

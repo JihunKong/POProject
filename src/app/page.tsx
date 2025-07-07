@@ -36,10 +36,10 @@ export default function Home() {
               <span className="text-gradient-animate">Pure Ocean</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-700 font-medium mb-2">
-              AI 코칭 챗봇과 함께하는 해양 프로젝트
+              AI 코칭 챗봇과 함께하는 학습 여정
             </p>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              소크라테스식 질문을 통해 여러분의 창의적인 해양 보호 아이디어를 발전시켜보세요
+              소크라테스식 질문을 통해 여러분의 창의적인 아이디어를 발전시켜보세요
             </p>
           </div>
 
