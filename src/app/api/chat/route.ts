@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth } from '@/lib/auth-helpers';
 import { openai, SOCRATIC_SYSTEM_PROMPT } from '@/lib/openai';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
