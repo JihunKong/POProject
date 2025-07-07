@@ -17,16 +17,39 @@ function ChatInterfaceContent() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (force = false) => {
+    if (!isUserScrolling || force) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
   };
 
+  // Auto scroll only when new messages arrive and user is not scrolling
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    // Only auto-scroll for new messages (not initial load)
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [messages.length]);
+
+  // Detect user scrolling
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setIsUserScrolling(!isAtBottom);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -50,6 +73,10 @@ function ChatInterfaceContent() {
       }));
       setMessages(loadedMessages);
       setConversationId(convId);
+      // Don't auto-scroll when loading conversation
+      setIsUserScrolling(true);
+      // Allow user to manually scroll after loading
+      setTimeout(() => setIsUserScrolling(false), 1000);
     } catch (error) {
       console.error('Failed to load conversation:', error);
       alert('대화를 불러오는데 실패했습니다.');
@@ -83,6 +110,8 @@ function ChatInterfaceContent() {
         timestamp: new Date(),
       }]);
       refetchConversations();
+      // Scroll to bottom when assistant responds
+      setTimeout(() => scrollToBottom(true), 100);
     },
     onError: (error) => {
       console.error('메시지 전송 오류:', error);
@@ -103,6 +132,8 @@ function ChatInterfaceContent() {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     sendMessage.mutate(input);
+    // Force scroll to bottom when user sends a message
+    setTimeout(() => scrollToBottom(true), 100);
   };
 
   const startNewConversation = () => {
@@ -223,7 +254,7 @@ function ChatInterfaceContent() {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto flex">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto flex">
           <div className="w-full max-w-5xl mx-auto p-4 md:p-6">
             {isLoadingMessages ? (
               <div className="flex justify-center items-center h-full">
