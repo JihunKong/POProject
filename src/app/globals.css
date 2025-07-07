@@ -3,20 +3,12 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --ocean-primary: 195 100% 50%;
-    --ocean-secondary: 200 100% 45%;
-    --ocean-accent: 190 100% 42%;
-  }
-
   * {
     @apply antialiased;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-white text-gray-900;
   }
 }
 
