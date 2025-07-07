@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useMutation, useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axios from 'axios';
 import { Message, Conversation } from '@/types';
-import { MessageCircle, HandMetal, Lightbulb, Waves, Target, Bot, User, Plus, Send, Info } from 'lucide-react';
+import { MessageCircle, HandMetal, Lightbulb, Waves, Target, Bot, User, Plus, Send, Info, Menu, X, Clock, ChevronRight } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
@@ -15,7 +15,10 @@ function ChatInterfaceContent() {
   const [input, setInput] = useState('');
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,9 +28,19 @@ function ChatInterfaceContent() {
     scrollToBottom();
   }, [messages]);
 
+  // Auto-resize textarea
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = inputRef.current.scrollHeight + 'px';
+    }
+  }, [input]);
+
   // Load conversation messages
   const loadConversation = async (convId: string) => {
     setIsLoadingMessages(true);
+    setShowHistory(false);
+    setShowMobileMenu(false);
     try {
       const response = await axios.get(`/api/chat/${convId}`);
       const loadedMessages = response.data.messages.map((msg: Message & { timestamp: string }) => ({
@@ -79,7 +92,7 @@ function ChatInterfaceContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || sendMessage.isPending) return;
 
     const userMessage: Message = {
       role: 'user',
@@ -95,190 +108,303 @@ function ChatInterfaceContent() {
   const startNewConversation = () => {
     setConversationId(null);
     setMessages([]);
+    setShowHistory(false);
+    setShowMobileMenu(false);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setInput(suggestion);
+    inputRef.current?.focus();
   };
 
   return (
-    <div className="flex h-full">
-      {/* 사이드바 - 대화 목록 */}
-      <div className="w-64 glass-light backdrop-blur-xl border-r border-white/20 p-4 overflow-y-auto">
-        <button
-          onClick={startNewConversation}
-          className="btn-primary w-full mb-6 flex items-center justify-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          <span>새 대화 시작</span>
-        </button>
-        
-        <h3 className="text-sm font-bold text-gray-700 mb-3 px-2">최근 대화</h3>
-        <div className="space-y-2">
-          {conversationsData?.map((conv) => (
+    <div className="flex h-full w-full bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setShowMobileMenu(!showMobileMenu)}
+        className="lg:hidden fixed top-20 left-4 z-50 p-2 bg-white rounded-xl shadow-lg"
+      >
+        {showMobileMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+      </button>
+
+      {/* History Sidebar - Mobile Overlay */}
+      {showMobileMenu && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setShowMobileMenu(false)}
+        />
+      )}
+
+      {/* History Sidebar */}
+      <div className={`
+        fixed lg:relative lg:flex
+        ${showMobileMenu ? 'left-0' : '-left-full lg:left-0'}
+        ${showHistory ? 'lg:w-80' : 'lg:w-0'}
+        top-0 h-full w-80 bg-white shadow-xl
+        transition-all duration-300 ease-in-out z-50
+        overflow-hidden
+      `}>
+        <div className="w-80 p-4 overflow-y-auto">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-gray-800">대화 기록</h3>
             <button
-              key={conv.id}
-              onClick={() => loadConversation(conv.id)}
-              className={`w-full text-left p-3 rounded-xl text-sm transition-all duration-200 ${
-                conversationId === conv.id 
-                  ? 'bg-white/90 shadow-md border border-blue-200' 
-                  : 'hover:bg-white/50 hover:shadow-sm'
-              }`}
+              onClick={() => {
+                setShowHistory(false);
+                setShowMobileMenu(false);
+              }}
+              className="p-2 hover:bg-gray-100 rounded-lg lg:block hidden"
             >
-              <div className="font-medium text-gray-800 truncate mb-1">{conv.title}</div>
-              <div className="text-xs text-gray-500">
-                {new Date(conv.updatedAt).toLocaleDateString('ko-KR', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </div>
+              <X className="w-5 h-5" />
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 메인 채팅 영역 */}
-      <div className="flex-1 flex flex-col">
-        {/* 헤더 */}
-        <div className="glass-light backdrop-blur-xl border-b border-white/20 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
-              <MessageCircle className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-800">Pure Ocean 프로젝트 도우미</h2>
-              <p className="text-sm text-gray-600">
-                소크라테스식 질문으로 여러분의 아이디어를 발전시켜요
-              </p>
-            </div>
           </div>
-        </div>
+          
+          <button
+            onClick={startNewConversation}
+            className="btn-primary w-full mb-4 flex items-center justify-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span>새 대화 시작</span>
+          </button>
 
-        {/* 메시지 영역 */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
-          {isLoadingMessages ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="text-center">
-                <div className="loading-wave text-blue-500 mb-4">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-                <p className="text-gray-600 font-medium">대화를 불러오는 중...</p>
-              </div>
-            </div>
-          ) : messages.length === 0 && (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center max-w-2xl mx-auto">
-                <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-3xl flex items-center justify-center shadow-2xl float-animation">
-                  <HandMetal className="w-12 h-12 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-4">안녕하세요! 무엇을 도와드릴까요?</h3>
-                <p className="text-gray-600 mb-8">해양 프로젝트에 대한 궁금한 점을 자유롭게 물어보세요</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="card-glass p-4 hover:scale-105 transition-transform cursor-pointer">
-                    <Lightbulb className="w-8 h-8 mb-2 block text-yellow-500" />
-                    <p className="text-sm font-medium text-gray-700">해양 플라스틱 문제를 어떻게 접근하면 좋을까요?</p>
-                  </div>
-                  <div className="card-glass p-4 hover:scale-105 transition-transform cursor-pointer">
-                    <Waves className="w-8 h-8 mb-2 block text-blue-500" />
-                    <p className="text-sm font-medium text-gray-700">우리 지역 바다의 특별한 문제가 있을까요?</p>
-                  </div>
-                  <div className="card-glass p-4 hover:scale-105 transition-transform cursor-pointer">
-                    <Target className="w-8 h-8 mb-2 block text-red-500" />
-                    <p className="text-sm font-medium text-gray-700">프로젝트 목표를 어떻게 설정하면 좋을까요?</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex gap-3 ${
-                message.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
-            >
-              {message.role === 'assistant' && (
-                <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
-                  <Bot className="w-5 h-5 text-white" />
-                </div>
-              )}
-              <div
-                className={`max-w-md md:max-w-2xl px-5 py-4 rounded-2xl ${
-                  message.role === 'user'
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
-                    : 'bg-white/90 backdrop-blur-sm border border-gray-200 shadow-md'
+          <div className="space-y-2">
+            {conversationsData?.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => loadConversation(conv.id)}
+                className={`w-full text-left p-4 rounded-xl transition-all duration-200 ${
+                  conversationId === conv.id 
+                    ? 'bg-blue-50 border-2 border-blue-300' 
+                    : 'hover:bg-gray-50 border-2 border-transparent'
                 }`}
               >
-                <p className={`text-sm md:text-base leading-relaxed ${
-                  message.role === 'user' ? 'text-white' : 'text-gray-800'
-                }`}>{message.content}</p>
-                <p className={`text-xs mt-2 ${
-                  message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                }`}>
-                  {message.timestamp?.toLocaleTimeString('ko-KR', {
+                <div className="font-medium text-gray-800 mb-1">{conv.title}</div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Clock className="w-3 h-3" />
+                  {new Date(conv.updatedAt).toLocaleDateString('ko-KR', {
+                    month: 'short',
+                    day: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
                   })}
-                </p>
-              </div>
-              {message.role === 'user' && (
-                <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl flex items-center justify-center shadow-md">
-                  <User className="w-5 h-5 text-white" />
                 </div>
-              )}
-            </div>
-          ))}
-
-          {sendMessage.isPending && (
-            <div className="flex gap-3 justify-start">
-              <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md animate-pulse">
-                <Bot className="w-5 h-5 text-white" />
-              </div>
-              <div className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-md px-5 py-4 rounded-2xl">
-                <div className="loading-wave text-gray-400">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* 입력 영역 */}
-        <form onSubmit={handleSubmit} className="p-4 glass-light backdrop-blur-xl border-t border-white/20">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="궁금한 점을 물어보세요..."
-                className="input flex-1"
-                disabled={sendMessage.isPending}
-              />
-              <button
-                type="submit"
-                disabled={sendMessage.isPending || !input.trim()}
-                className="btn-primary px-8 flex items-center gap-2"
-              >
-                <span>전송</span>
-                <Send className="w-4 h-4" />
               </button>
-            </div>
-            <div className="flex items-center justify-center mt-3 text-xs text-gray-500">
-              <span className="flex items-center gap-1">
-                <Info className="w-3 h-3" />
-                Shift + Enter로 줄바꿈 가능
-              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col h-full w-full">
+        {/* Header */}
+        <div className="bg-white/80 backdrop-blur-sm shadow-sm px-4 md:px-6 py-4">
+          <div className="flex items-center justify-between max-w-6xl mx-auto">
+            <div className="flex items-center gap-3">
+              {!showHistory && (
+                <button
+                  onClick={() => setShowHistory(true)}
+                  className="hidden lg:flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Clock className="w-4 h-4" />
+                  대화 기록
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+                  <Waves className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg md:text-xl font-bold text-gray-800">Pure Ocean AI 코치</h2>
+                  <p className="text-xs md:text-sm text-gray-600">GROW 모델 기반 프로젝트 코칭</p>
+                </div>
+              </div>
             </div>
           </div>
-        </form>
+        </div>
+
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto flex">
+          <div className="w-full max-w-5xl mx-auto p-4 md:p-6">
+            {isLoadingMessages ? (
+              <div className="flex justify-center items-center h-full">
+                <div className="text-center">
+                  <div className="loading-wave text-blue-500 mb-4">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <p className="text-gray-600 font-medium">대화를 불러오는 중...</p>
+                </div>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center w-full max-w-4xl px-4">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center shadow-xl">
+                    <Bot className="w-10 h-10 text-white" />
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">
+                    안녕하세요! Pure Ocean 프로젝트를 시작해볼까요?
+                  </h3>
+                  <p className="text-gray-600 mb-8 text-lg">
+                    여러분의 아이디어를 단계별로 발전시켜 드릴게요
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 justify-center">
+                    <button
+                      onClick={() => handleSuggestionClick("우리 지역 해양 문제를 조사하고 싶어요")}
+                      className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-blue-200"
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                          <Target className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <h4 className="font-bold text-gray-800">목표 설정</h4>
+                      </div>
+                      <p className="text-sm text-gray-600">우리 지역 해양 문제를 조사하고 싶어요</p>
+                    </button>
+
+                    <button
+                      onClick={() => handleSuggestionClick("해양 플라스틱 문제를 해결하는 프로젝트를 하고 싶어요")}
+                      className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-green-200"
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                          <Lightbulb className="w-6 h-6 text-green-600" />
+                        </div>
+                        <h4 className="font-bold text-gray-800">아이디어 탐색</h4>
+                      </div>
+                      <p className="text-sm text-gray-600">해양 플라스틱 문제를 해결하는 프로젝트를 하고 싶어요</p>
+                    </button>
+
+                    <button
+                      onClick={() => handleSuggestionClick("팀원들과 역할 분담을 어떻게 하면 좋을까요?")}
+                      className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-purple-200"
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                          <User className="w-6 h-6 text-purple-600" />
+                        </div>
+                        <h4 className="font-bold text-gray-800">팀 협업</h4>
+                      </div>
+                      <p className="text-sm text-gray-600">팀원들과 역할 분담을 어떻게 하면 좋을까요?</p>
+                    </button>
+                  </div>
+
+                  <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
+                    <Info className="w-4 h-4 inline mr-2" />
+                    GROW 모델(목표-현실-대안-실행)을 기반으로 한 단계씩 질문드릴게요
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex gap-3 ${
+                      message.role === 'user' ? 'justify-end' : 'justify-start'
+                    }`}
+                  >
+                    {message.role === 'assistant' && (
+                      <div className="flex-shrink-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+                          <Bot className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className={`max-w-2xl ${message.role === 'user' ? 'order-1' : 'order-2'}`}>
+                      <div className={`rounded-2xl px-6 py-4 shadow-sm ${
+                        message.role === 'user'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white border border-gray-200'
+                      }`}>
+                        <p className={`whitespace-pre-wrap ${
+                          message.role === 'user' ? 'text-white' : 'text-gray-800'
+                        }`}>
+                          {message.content}
+                        </p>
+                        <div className={`text-xs mt-2 ${
+                          message.role === 'user' ? 'text-blue-100' : 'text-gray-400'
+                        }`}>
+                          {message.timestamp.toLocaleTimeString('ko-KR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {message.role === 'user' && (
+                      <div className="flex-shrink-0 order-2">
+                        <div className="w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center">
+                          <User className="w-6 h-6 text-gray-600" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {sendMessage.isPending && (
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+                        <Bot className="w-6 h-6 text-white" />
+                      </div>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-2xl px-6 py-4 shadow-sm">
+                      <div className="loading-wave text-gray-400">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Input Area */}
+        <div className="bg-white border-t border-gray-200 p-4">
+          <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
+            <div className="flex gap-3 items-end">
+              <div className="flex-1 relative">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e);
+                    }
+                  }}
+                  placeholder="궁금한 점을 물어보세요..."
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl 
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                           resize-none min-h-[52px] max-h-32"
+                  rows={1}
+                />
+                <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+                  Shift + Enter로 줄바꿈
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={!input.trim() || sendMessage.isPending}
+                className="btn-primary px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed
+                         flex items-center gap-2"
+              >
+                <Send className="w-5 h-5" />
+                <span className="hidden sm:inline">전송</span>
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

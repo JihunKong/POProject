@@ -48,7 +48,7 @@ export default function ChatPage() {
       </header>
       
       {/* Chat Interface */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 w-full overflow-hidden">
         <ChatInterface />
       </div>
     </div>
