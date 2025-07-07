@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useMutation, useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axios from 'axios';
 import { Message, Conversation } from '@/types';
-import { MessageCircle, HandMetal, Lightbulb, Waves, Target, Bot, User, Plus, Send, Info, Menu, X, Clock, ChevronRight } from 'lucide-react';
+import { Lightbulb, Waves, Target, Bot, User, Plus, Send, Info, Menu, X, Clock, ChevronRight } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
@@ -325,14 +325,16 @@ function ChatInterfaceContent() {
                         }`}>
                           {message.content}
                         </p>
-                        <div className={`text-xs mt-2 ${
-                          message.role === 'user' ? 'text-blue-100' : 'text-gray-400'
-                        }`}>
-                          {message.timestamp.toLocaleTimeString('ko-KR', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </div>
+                        {message.timestamp && (
+                          <div className={`text-xs mt-2 ${
+                            message.role === 'user' ? 'text-blue-100' : 'text-gray-400'
+                          }`}>
+                            {message.timestamp.toLocaleTimeString('ko-KR', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
 
