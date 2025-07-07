@@ -14,7 +14,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async signIn() {
-      // 도메인 제한 제거 - 모든 Google 계정 허용
+      // 모든 Google 계정 허용
       return true;
     },
     async session({ session, token }) {
