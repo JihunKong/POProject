@@ -379,7 +379,7 @@ function ChatInterfaceContent() {
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                           <p className="text-xs text-gray-500 mt-1">
-                            student-worksheet.md 템플릿을 기반으로 작성한 문서를 편집자 권한으로 공유해주세요
+                            작성 중인 문서들을 첨부해주세요.
                           </p>
                         </div>
                         
