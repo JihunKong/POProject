@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { 
   Plus, Calendar, Search, LayoutGrid,
@@ -82,6 +83,7 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
 
   // 새 작업 폼 상태
   const [newTask, setNewTask] = useState({
@@ -169,11 +171,16 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
 
   const getRoleRecommendations = async () => {
     try {
+      setIsLoadingRecommendations(true);
       setShowRoleRecommendation(true);
+      setRoleRecommendations(''); // 기존 내용 초기화
       const response = await axios.post(`/api/teams/${teamId}/recommend-roles`);
       setRoleRecommendations(response.data.recommendations);
     } catch (error) {
       console.error('Failed to get role recommendations:', error);
+      alert('역할 추천을 가져오는데 실패했습니다.');
+    } finally {
+      setIsLoadingRecommendations(false);
     }
   };
 
@@ -267,9 +274,14 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
               )}
               <button
                 onClick={getRoleRecommendations}
-                className="flex items-center gap-2 px-4 py-2 text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100"
+                disabled={isLoadingRecommendations}
+                className="flex items-center gap-2 px-4 py-2 text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Brain className="w-4 h-4" />
+                {isLoadingRecommendations ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600" />
+                ) : (
+                  <Brain className="w-4 h-4" />
+                )}
                 AI 역할 추천
               </button>
               <button
@@ -955,26 +967,73 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
       )}
 
       {/* Role Recommendation Modal */}
-      {showRoleRecommendation && roleRecommendations && (
+      {showRoleRecommendation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-4">
               <h2 className="text-xl font-bold">AI 역할 추천</h2>
               <button
-                onClick={() => setShowRoleRecommendation(false)}
+                onClick={() => {
+                  setShowRoleRecommendation(false);
+                  setRoleRecommendations('');
+                  setIsLoadingRecommendations(false);
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 ✕
               </button>
             </div>
             
-            <div className="prose prose-sm max-w-none">
-              <div className="whitespace-pre-wrap">{roleRecommendations}</div>
-            </div>
+            {isLoadingRecommendations ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                <p className="text-gray-600 text-center">
+                  역할 분석 중입니다.<br />
+                  잠시만 기다려 주세요...
+                </p>
+              </div>
+            ) : roleRecommendations ? (
+              <div className="prose prose-sm max-w-none">
+                <ReactMarkdown
+                  components={{
+                    p: ({ ...props }) => (
+                      <p {...props} className="mb-3 leading-relaxed" />
+                    ),
+                    strong: ({ ...props }) => (
+                      <strong {...props} className="font-bold text-gray-900" />
+                    ),
+                    ul: ({ ...props }) => (
+                      <ul {...props} className="list-disc list-inside mb-4 space-y-1" />
+                    ),
+                    ol: ({ ...props }) => (
+                      <ol {...props} className="list-decimal list-inside mb-4 space-y-1" />
+                    ),
+                    li: ({ ...props }) => (
+                      <li {...props} className="mb-1" />
+                    ),
+                    h1: ({ ...props }) => (
+                      <h1 {...props} className="text-lg font-bold mb-3 mt-4 first:mt-0" />
+                    ),
+                    h2: ({ ...props }) => (
+                      <h2 {...props} className="text-base font-bold mb-2 mt-3 first:mt-0" />
+                    ),
+                    h3: ({ ...props }) => (
+                      <h3 {...props} className="text-sm font-bold mb-2 mt-3 first:mt-0" />
+                    ),
+                  }}
+                >
+                  {roleRecommendations}
+                </ReactMarkdown>
+              </div>
+            ) : null}
             
             <div className="mt-6 flex justify-end">
               <button
-                onClick={() => setShowRoleRecommendation(false)}
+                onClick={() => {
+                  setShowRoleRecommendation(false);
+                  setRoleRecommendations('');
+                  setIsLoadingRecommendations(false);
+                }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 확인
