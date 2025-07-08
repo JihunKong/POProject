@@ -96,10 +96,12 @@ function ChatInterfaceContent() {
     }
   };
 
-  const { data: conversationsData, refetch: refetchConversations } = useQuery({
+  const { data: conversationsData, refetch: refetchConversations, isLoading: isLoadingConversations, error: conversationsError } = useQuery({
     queryKey: ['conversations'],
     queryFn: async () => {
+      console.log('Fetching conversations...');
       const response = await axios.get('/api/chat');
+      console.log('Conversations response:', response.data);
       return response.data.conversations as Conversation[];
     },
     enabled: !!session,
@@ -241,28 +243,51 @@ function ChatInterfaceContent() {
           </button>
 
           <div className="space-y-2">
-            {conversationsData?.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => loadConversation(conv.id)}
-                className={`w-full text-left p-4 rounded-xl transition-all duration-200 ${
-                  conversationId === conv.id 
-                    ? 'bg-blue-50 border-2 border-blue-300' 
-                    : 'hover:bg-gray-50 border-2 border-transparent'
-                }`}
-              >
-                <div className="font-medium text-gray-800 mb-1">{conv.title}</div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Clock className="w-3 h-3" />
-                  {new Date(conv.updatedAt).toLocaleDateString('ko-KR', {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </div>
-              </button>
-            ))}
+            {isLoadingConversations ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-sm text-gray-500 mt-2">대화 기록 로딩 중...</p>
+              </div>
+            ) : conversationsError ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-red-500">대화 기록을 불러오는데 실패했습니다.</p>
+                <button 
+                  onClick={() => refetchConversations()}
+                  className="text-xs text-blue-600 hover:underline mt-1"
+                >
+                  다시 시도
+                </button>
+              </div>
+            ) : conversationsData && conversationsData.length > 0 ? (
+              conversationsData.map((conv) => (
+                <button
+                  key={conv.id}
+                  onClick={() => loadConversation(conv.id)}
+                  className={`w-full text-left p-4 rounded-xl transition-all duration-200 ${
+                    conversationId === conv.id 
+                      ? 'bg-blue-50 border-2 border-blue-300' 
+                      : 'hover:bg-gray-50 border-2 border-transparent'
+                  }`}
+                >
+                  <div className="font-medium text-gray-800 mb-1">{conv.title}</div>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Clock className="w-3 h-3" />
+                    {new Date(conv.updatedAt).toLocaleDateString('ko-KR', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">아직 대화 기록이 없습니다.</p>
+                <p className="text-xs text-gray-400 mt-1">새 대화를 시작해보세요!</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

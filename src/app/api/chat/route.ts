@@ -126,19 +126,38 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
+  console.log('GET /api/chat - Fetching conversations');
+  
   try {
     const session = await auth();
+    console.log('Session:', { email: session?.user?.email });
+    
     if (!session?.user?.email) {
+      console.log('No session or email');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 사용자 찾기
-    const user = await prisma.user.findUnique({
+    // 사용자 찾기 또는 생성
+    let user = await prisma.user.findUnique({
       where: { email: session.user.email }
     });
+    console.log('Found user:', user ? { id: user.id, email: user.email } : 'null');
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      console.log('User not found, creating new user');
+      try {
+        user = await prisma.user.create({
+          data: {
+            email: session.user.email,
+            name: session.user.name || null,
+            image: session.user.image || null,
+          },
+        });
+        console.log('Created new user:', { id: user.id, email: user.email });
+      } catch (createError) {
+        console.error('Failed to create user:', createError);
+        return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
+      }
     }
 
     const conversations = await prisma.conversation.findMany({
@@ -151,6 +170,8 @@ export async function GET() {
         updatedAt: true,
       }
     });
+    
+    console.log('Found conversations:', conversations.length);
 
     return NextResponse.json({ conversations });
 
