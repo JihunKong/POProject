@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-helpers';
 
 // GET: 사용자의 팀 목록 조회
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.email) {

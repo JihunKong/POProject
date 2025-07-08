@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { 
-  Plus, Calendar, Users, CheckCircle, Clock, AlertCircle, 
-  MessageSquare, Paperclip, MoreVertical, Star, Tag,
-  ChevronDown, ChevronRight, Filter, Search, LayoutGrid,
-  List, BarChart3, Settings, UserPlus, Brain
+  Plus, Calendar, Search, LayoutGrid,
+  List, BarChart3, Brain
 } from 'lucide-react';
 
 interface Team {
@@ -47,15 +45,6 @@ interface Task {
   updatedAt: string;
 }
 
-interface Comment {
-  id: string;
-  content: string;
-  createdAt: string;
-  user: {
-    name: string | null;
-    email: string;
-  };
-}
 
 type ViewMode = 'board' | 'list' | 'timeline';
 
@@ -76,7 +65,7 @@ const CATEGORIES = [
 ];
 
 export default function TeamDashboard({ params }: { params: { teamId: string } }) {
-  const { data: session } = useSession();
+  useSession();
   const router = useRouter();
   const [team, setTeam] = useState<Team | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -105,18 +94,18 @@ export default function TeamDashboard({ params }: { params: { teamId: string } }
       fetchTeamData();
       fetchTasks();
     }
-  }, [params.teamId]);
+  }, [params.teamId, fetchTeamData, fetchTasks]);
 
-  const fetchTeamData = async () => {
+  const fetchTeamData = useCallback(async () => {
     try {
       const response = await axios.get(`/api/teams/${params.teamId}`);
       setTeam(response.data.team);
     } catch (error) {
       console.error('Failed to fetch team:', error);
     }
-  };
+  }, [params.teamId]);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       const response = await axios.get(`/api/teams/${params.teamId}/tasks`);
       setTasks(response.data.tasks);
@@ -125,7 +114,7 @@ export default function TeamDashboard({ params }: { params: { teamId: string } }
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.teamId]);
 
   const createTask = async () => {
     try {
@@ -156,7 +145,7 @@ export default function TeamDashboard({ params }: { params: { teamId: string } }
     }
   };
 
-  const onDragEnd = async (result: any) => {
+  const onDragEnd = async (result: { destination?: { droppableId: string }; draggableId: string }) => {
     if (!result.destination) return;
 
     const { draggableId, destination } = result;

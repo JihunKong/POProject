@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 팀 멤버 추가
-    const teamMember = await prisma.teamMember.create({
+    await prisma.teamMember.create({
       data: {
         teamId: team.id,
         userId: user.id,

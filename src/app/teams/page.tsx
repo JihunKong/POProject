@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { Users, Plus, Copy, CheckCircle, Clock, AlertCircle, Calendar, UserPlus } from 'lucide-react';
+import { Users, Plus, Copy, CheckCircle, Clock, AlertCircle, UserPlus } from 'lucide-react';
 
 interface Team {
   id: string;
@@ -36,7 +36,7 @@ interface Team {
 }
 
 export default function TeamsPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,9 +99,9 @@ export default function TeamsPage() {
       setTeams([...teams, response.data.team]);
       setShowJoinModal(false);
       setJoinData({ inviteCode: '', subjects: [] });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to join team:', error);
-      alert(error.response?.data?.error || '팀 가입에 실패했습니다.');
+      alert((error as { response?: { data?: { error?: string } } }).response?.data?.error || '팀 가입에 실패했습니다.');
     }
   };
 
@@ -180,7 +180,7 @@ export default function TeamsPage() {
                       <div>
                         <h3 className="text-xl font-bold text-gray-900">{team.name}</h3>
                         {team.slogan && (
-                          <p className="text-sm text-gray-600 italic mt-1">"{team.slogan}"</p>
+                          <p className="text-sm text-gray-600 italic mt-1">&ldquo;{team.slogan}&rdquo;</p>
                         )}
                       </div>
                       <span className={`px-2 py-1 text-xs font-medium rounded ${

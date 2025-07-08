@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { 
-  MessageSquare, Users, Home, LogOut, User,
-  Brain, FileText, HelpCircle
+  MessageSquare, Users, Home, LogOut, User
 } from 'lucide-react';
 
 export default function Navigation() {
@@ -65,6 +64,7 @@ export default function Navigation() {
                 <p className="text-gray-500 text-xs">학생</p>
               </div>
               {session.user?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={session.user.image}
                   alt="Profile"
