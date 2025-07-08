@@ -11,7 +11,7 @@ export default function Home() {
 
   useEffect(() => {
     if (status === 'authenticated' && session) {
-      router.push('/chat');
+      router.push('/home');
     }
   }, [session, status, router]);
 

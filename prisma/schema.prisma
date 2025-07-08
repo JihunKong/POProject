@@ -92,26 +92,31 @@ model Message {
 model Team {
   id          String       @id @default(cuid())
   name        String
+  slogan      String?
   description String?
   projectGoal String?
+  inviteCode  String       @unique @default(cuid())
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   
   // Relations
   members     TeamMember[]
   progress    Progress[]
+  tasks       Task[]
 }
 
 model TeamMember {
   id        String   @id @default(cuid())
   teamId    String
   userId    String
-  role      String   @default("member")
+  role      String   @default("member") // leader, member
+  subjects  String[] // 융합 과목
   joinedAt  DateTime @default(now())
   
   // Relations
   team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     Task[]   @relation("AssignedTasks")
   
   @@unique([teamId, userId])
   @@index([teamId])
@@ -149,6 +154,29 @@ model Analytics {
   @@index([createdAt])
 }
 
+model Task {
+  id          String       @id @default(cuid())
+  teamId      String
+  title       String
+  description String?
+  phase       String       // Day1, Day2, Day3, Day4, Day5
+  category    String       // 문제발견, 분석, 해결책, 발표준비 등
+  dueDate     DateTime?
+  status      TaskStatus   @default(PENDING)
+  assignedTo  String[]     // TeamMember IDs
+  createdBy   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  // Relations
+  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  assignees   TeamMember[] @relation("AssignedTasks")
+  
+  @@index([teamId])
+  @@index([status])
+  @@index([phase])
+}
+
 enum Role {
   STUDENT
   TEACHER
@@ -158,4 +186,11 @@ enum Role {
 enum MessageRole {
   USER
   ASSISTANT
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
