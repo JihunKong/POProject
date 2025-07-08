@@ -42,9 +42,9 @@ export async function POST(
 
     // 팀원 정보 정리
     const memberInfo = team.members.map(member => ({
-      name: member.user.name || member.user.email,
-      subjects: member.subjects,
-      currentRole: member.role
+      name: member.user?.name || member.user?.email || 'Unknown',
+      subjects: member.subjects || [],
+      currentRole: member.role || 'member'
     }));
 
     // 작업 카테고리 분석
@@ -115,18 +115,23 @@ ${memberInfo.map((m, i) => `${i + 1}. ${m.name}
 
     const recommendations = response.choices[0].message.content || '';
 
-    // 추천 결과 저장 (선택사항)
-    await prisma.analytics.create({
-      data: {
-        userId: session.user.email,
-        eventType: 'role_recommendation',
-        eventData: {
-          teamId,
-          recommendations,
-          timestamp: new Date()
+    // 추천 결과 저장 (선택사항) - 에러 발생 시 무시
+    try {
+      await prisma.analytics.create({
+        data: {
+          userId: session.user.email,
+          eventType: 'role_recommendation',
+          eventData: {
+            teamId,
+            recommendations: recommendations.slice(0, 500), // 길이 제한
+            timestamp: new Date().toISOString()
+          }
         }
-      }
-    });
+      });
+    } catch (analyticsError) {
+      console.error('Failed to save analytics:', analyticsError);
+      // Analytics 저장 실패는 무시하고 계속 진행
+    }
 
     return NextResponse.json({ 
       recommendations,
@@ -134,6 +139,14 @@ ${memberInfo.map((m, i) => `${i + 1}. ${m.name}
       memberCount: team.members.length
     });
   } catch (error) {
+    console.error('Error in recommend-roles:', error);
+    
+    // 더 자세한 에러 정보 제공
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
     return handleApiError(error);
   }
 }
