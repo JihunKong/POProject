@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   console.log('Testing OpenAI API...');
   
   try {
