@@ -7,7 +7,7 @@ import { handleApiError } from '@/lib/api-helpers';
 // POST: AI 역할 추천
 export async function POST(
   req: NextRequest,
-  { params }: { params: { teamId: string } }
+  context: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const session = await auth();
@@ -15,7 +15,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId } = params;
+    const { teamId } = await context.params;
 
     // 팀 정보와 멤버 정보 가져오기
     const team = await prisma.team.findUnique({

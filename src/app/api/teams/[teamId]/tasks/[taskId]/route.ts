@@ -6,7 +6,7 @@ import { handleApiError } from '@/lib/api-helpers';
 // PATCH: 작업 업데이트
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { teamId: string; taskId: string } }
+  context: { params: Promise<{ teamId: string; taskId: string }> }
 ) {
   try {
     const session = await auth();
@@ -14,7 +14,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId, taskId } = params;
+    const { teamId, taskId } = await context.params;
     const updates = await req.json();
 
     // 사용자가 팀 멤버인지 확인
@@ -86,7 +86,7 @@ export async function PATCH(
 // DELETE: 작업 삭제
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { teamId: string; taskId: string } }
+  context: { params: Promise<{ teamId: string; taskId: string }> }
 ) {
   try {
     const session = await auth();
@@ -94,7 +94,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId, taskId } = params;
+    const { teamId, taskId } = await context.params;
 
     // 사용자가 팀 리더인지 확인
     const user = await prisma.user.findUnique({

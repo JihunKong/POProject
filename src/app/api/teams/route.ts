@@ -15,7 +15,7 @@ export async function GET() {
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: {
-        teamMembers: {
+        teams: {
           include: {
             team: {
               include: {
@@ -39,7 +39,7 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const teams = user.teamMembers.map(tm => ({
+    const teams = user.teams.map(tm => ({
       ...tm.team,
       myRole: tm.role,
       mySubjects: tm.subjects

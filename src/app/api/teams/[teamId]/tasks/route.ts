@@ -6,7 +6,7 @@ import { handleApiError } from '@/lib/api-helpers';
 // GET: 팀의 작업 목록 조회
 export async function GET(
   req: NextRequest,
-  { params }: { params: { teamId: string } }
+  context: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const session = await auth();
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId } = params;
+    const { teamId } = await context.params;
 
     // 사용자가 팀 멤버인지 확인
     const user = await prisma.user.findUnique({
@@ -64,7 +64,7 @@ export async function GET(
 // POST: 새 작업 생성
 export async function POST(
   req: NextRequest,
-  { params }: { params: { teamId: string } }
+  context: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const session = await auth();
@@ -72,7 +72,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { teamId } = params;
+    const { teamId } = await context.params;
     const { title, description, phase, category, dueDate, assignedTo } = await req.json();
 
     if (!title || !phase || !category) {
