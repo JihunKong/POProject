@@ -8,8 +8,17 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 사용자 찾기
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const { conversationId } = await params;
@@ -17,7 +26,7 @@ export async function GET(
     const conversation = await prisma.conversation.findUnique({
       where: {
         id: conversationId,
-        userId: session.user.id,
+        userId: user.id,
       },
       include: {
         messages: {

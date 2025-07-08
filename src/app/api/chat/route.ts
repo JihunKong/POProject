@@ -4,19 +4,49 @@ import { openai, SOCRATIC_SYSTEM_PROMPT } from '@/lib/openai';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
+  console.log('POST /api/chat - Starting chat request');
+  
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    console.log('Session:', { email: session?.user?.email, name: session?.user?.name });
+    
+    if (!session?.user?.email) {
+      console.log('No session or email found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { conversationId, message } = await req.json();
+    console.log('Request body:', { conversationId, messageLength: message?.length });
+
+    // 사용자 찾기 또는 생성
+    console.log('Finding user with email:', session.user.email);
+    let user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    });
+    console.log('Found user:', user ? { id: user.id, email: user.email } : 'null');
+
+    if (!user) {
+      console.log('User not found, creating new user');
+      try {
+        user = await prisma.user.create({
+          data: {
+            email: session.user.email,
+            name: session.user.name || null,
+            image: session.user.image || null,
+          },
+        });
+        console.log('Created new user:', { id: user.id, email: user.email });
+      } catch (createError) {
+        console.error('Failed to create user:', createError);
+        return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
+      }
+    }
 
     // 대화 기록 조회 또는 생성
     let conversation;
     if (conversationId) {
       conversation = await prisma.conversation.findUnique({
-        where: { id: conversationId, userId: session.user.id },
+        where: { id: conversationId, userId: user.id },
         include: { messages: { orderBy: { createdAt: 'asc' } } }
       });
     }
@@ -24,7 +54,7 @@ export async function POST(req: NextRequest) {
     if (!conversation) {
       conversation = await prisma.conversation.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           title: message.substring(0, 50),
         },
         include: { messages: true }
@@ -43,7 +73,7 @@ export async function POST(req: NextRequest) {
     // 분석 데이터 저장
     await prisma.analytics.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         eventType: 'chat_message',
         eventData: {
           conversationId: conversation.id,
@@ -98,12 +128,21 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // 사용자 찾기
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const conversations = await prisma.conversation.findMany({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       orderBy: { updatedAt: 'desc' },
       take: 10,
       select: {
