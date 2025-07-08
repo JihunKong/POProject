@@ -356,20 +356,20 @@ function ChatInterfaceContent() {
                     <FileText className="w-10 h-10 text-white" />
                   </div>
                   <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">
-                    문서 첨삭 도우미
+                    Pure Ocean 워크시트 첨삭
                   </h3>
                   <p className="text-gray-600 mb-8 text-lg">
-                    Google Docs 문서를 공유하면 AI가 자세한 피드백을 드립니다
+                    작성한 Pure Ocean 프로젝트 워크시트를 공유하면 AI가 자세한 피드백을 드립니다
                   </p>
                   
                   <div className="max-w-2xl mx-auto space-y-4">
                     <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                      <h4 className="font-bold text-gray-800 mb-4">문서 정보 입력</h4>
+                      <h4 className="font-bold text-gray-800 mb-4">워크시트 정보 입력</h4>
                       
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Google Docs URL
+                            Pure Ocean 워크시트 Google Docs URL
                           </label>
                           <input
                             type="text"
@@ -379,24 +379,22 @@ function ChatInterfaceContent() {
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                           <p className="text-xs text-gray-500 mt-1">
-                            편집자 권한으로 공유해주세요
+                            student-worksheet.md 템플릿을 기반으로 작성한 문서를 편집자 권한으로 공유해주세요
                           </p>
                         </div>
                         
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            글의 장르
+                            첨삭 유형
                           </label>
                           <select
                             value={docGenre}
                             onChange={(e) => setDocGenre(e.target.value)}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
-                            <option value="감상문">감상문</option>
-                            <option value="비평문">비평문</option>
-                            <option value="보고서">보고서</option>
-                            <option value="소논문">소논문</option>
-                            <option value="논설문">논설문</option>
+                            <option value="워크시트">프로젝트 워크시트</option>
+                            <option value="보고서">최종 보고서</option>
+                            <option value="발표자료">PPT 발표자료</option>
                           </select>
                         </div>
                         
@@ -416,7 +414,7 @@ function ChatInterfaceContent() {
                     
                     <div className="bg-amber-50 rounded-xl p-4 text-sm text-amber-800">
                       <Info className="w-4 h-4 inline mr-2" />
-                      장르별 구조적 원리에 따라 전문적인 피드백을 제공합니다
+                      Pure Ocean 프로젝트 평가 기준에 따라 각 섹션별로 구체적인 피드백을 제공합니다
                     </div>
                   </div>
                 </div>

@@ -73,7 +73,7 @@ ${fullText.slice(0, 3000)}...
       messages: [
         {
           role: "system",
-          content: `당신은 ${genre} 평가 전문가입니다. 학생들의 글을 건설적으로 평가해주세요.`
+          content: `당신은 Pure Ocean Project 멘토입니다. 고등학생들의 프로젝트 워크시트를 검토하고 건설적인 피듬백을 제공해주세요. 학생들이 프로젝트를 더 발전시킬 수 있도록 구체적인 조언을 해주세요.`
         },
         {
           role: "user",
@@ -118,7 +118,7 @@ ${section.text}
           messages: [
             {
               role: "system",
-              content: `당신은 ${genre} 평가 전문가입니다.`
+              content: `당신은 Pure Ocean Project 멘토입니다. 워크시트의 각 섹션을 검토하고 학생들에게 도움이 되는 피드백을 제공해주세요.`
             },
             {
               role: "user",
