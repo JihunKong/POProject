@@ -43,7 +43,7 @@ export default function HomePage() {
       icon: FileText,
       title: '문서 작업',
       description: '워크시트 작성 및 AI 피드백',
-      href: '/chat',
+      href: '/chat?mode=docs',
       color: 'bg-purple-500'
     }
   ];

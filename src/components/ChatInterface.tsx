@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axios from 'axios';
 import { Message, Conversation } from '@/types';
@@ -13,6 +14,7 @@ type ChatMode = 'grow' | 'assistant' | 'docs';
 
 function ChatInterfaceContent() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -20,9 +22,12 @@ function ChatInterfaceContent() {
   const [showHistory, setShowHistory] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
-  const [chatMode, setChatMode] = useState<ChatMode>('grow');
+  
+  // URL 파라미터에서 초기 chatMode 설정
+  const initialChatMode = searchParams.get('mode') as ChatMode || 'grow';
+  const [chatMode, setChatMode] = useState<ChatMode>(initialChatMode);
   const [docUrl, setDocUrl] = useState('');
-  const [docGenre, setDocGenre] = useState('감상문');
+  const [docGenre, setDocGenre] = useState('워크시트');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -166,8 +171,23 @@ function ChatInterfaceContent() {
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    setInput(suggestion);
-    inputRef.current?.focus();
+    if (chatMode === 'docs') {
+      // 문서 첨삭 모드에서는 바로 메시지 전송
+      const userMessage: Message = {
+        role: 'user',
+        content: suggestion,
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      sendMessage.mutate(suggestion);
+      // Force scroll to bottom when user sends a message
+      setTimeout(() => scrollToBottom(true), 100);
+    } else {
+      // 다른 모드에서는 기존 방식대로 input에 설정
+      setInput(suggestion);
+      inputRef.current?.focus();
+    }
   };
 
   return (
