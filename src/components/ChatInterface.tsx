@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 import { Message, Conversation } from '@/types';
 import { Lightbulb, Waves, Target, Bot, User, Plus, Send, Info, Menu, X, Clock, ChevronRight, MessageSquare, FileText, HelpCircle } from 'lucide-react';
 
@@ -571,11 +572,49 @@ function ChatInterfaceContent() {
                           ? 'bg-blue-500 text-white'
                           : 'bg-white border border-gray-200'
                       }`}>
-                        <p className={`whitespace-pre-wrap ${
+                        <div className={`whitespace-pre-wrap ${
                           message.role === 'user' ? 'text-white' : 'text-gray-800'
                         }`}>
-                          {message.content}
-                        </p>
+                          {message.role === 'assistant' ? (
+                            <div className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2">
+                              <ReactMarkdown
+                                components={{
+                                  a: ({ ...props }) => (
+                                    <a 
+                                      {...props} 
+                                      className={`underline hover:no-underline ${
+                                        message.role === 'user' 
+                                          ? 'text-blue-100 hover:text-white' 
+                                          : 'text-blue-600 hover:text-blue-800'
+                                      }`}
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                    />
+                                  ),
+                                  strong: ({ ...props }) => (
+                                    <strong {...props} className="font-bold" />
+                                  ),
+                                  p: ({ ...props }) => (
+                                    <p {...props} className="mb-2 last:mb-0" />
+                                  ),
+                                  ul: ({ ...props }) => (
+                                    <ul {...props} className="list-disc list-inside mb-2" />
+                                  ),
+                                  ol: ({ ...props }) => (
+                                    <ol {...props} className="list-decimal list-inside mb-2" />
+                                  ),
+                                  li: ({ ...props }) => (
+                                    <li {...props} className="mb-1" />
+                                  )
+                                }}
+                              >
+                                {message.content}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            message.content
+                          )}
+                        </div>
                         {message.timestamp && (
                           <div className={`text-xs mt-2 ${
                             message.role === 'user' ? 'text-blue-100' : 'text-gray-400'

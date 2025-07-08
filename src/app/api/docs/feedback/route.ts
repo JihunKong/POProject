@@ -41,6 +41,12 @@ export async function POST(req: NextRequest) {
     // 전체 텍스트 추출
     const fullText = contentWithPositions.map(item => item.text).join('\n');
     
+    // 실제 내용이 있는지 확인 (빈 문서나 템플릿만 있는 경우)
+    const meaningfulContent = fullText.replace(/[\s\n\r_]+/g, ' ').trim();
+    const isEmptyOrTemplate = meaningfulContent.length < 100 || 
+      meaningfulContent.includes('_______________________________') ||
+      meaningfulContent.split('팀명:').length > 1 && meaningfulContent.split('팀명:')[1].trim().startsWith('_');
+    
     // 피드백을 저장할 배열
     const feedbacks: Array<{
       type: string;
@@ -50,7 +56,24 @@ export async function POST(req: NextRequest) {
 
     // 먼저 전체 문서에 대한 종합 평가 생성
     const genreInfo = GENRES[genre as keyof typeof GENRES];
-    const overallPrompt = `
+    
+    let overallPrompt;
+    if (isEmptyOrTemplate) {
+      overallPrompt = `
+다음은 ${genre} 템플릿입니다. 현재 대부분의 내용이 작성되지 않았습니다.
+
+문서 내용:
+${fullText.slice(0, 3000)}...
+
+이 문서에 대해 다음과 같이 평가해주세요:
+1. 현재 작성 상태 (미완성/템플릿 상태임을 명시)
+2. 우선적으로 작성해야 할 부분들
+3. 각 단계별 작성 가이드라인
+4. 팀워크를 통한 효율적인 작성 방법
+
+학생들이 체계적으로 워크시트를 완성할 수 있도록 단계별 가이드를 제공해주세요.`;
+    } else {
+      overallPrompt = `
 다음은 ${genre}입니다. ${genre}의 일반적인 구조적 원리에 따라 평가해주세요.
 
 평가 기준:
@@ -67,6 +90,7 @@ ${fullText.slice(0, 3000)}...
 4. 잘된 점
 
 평가는 구체적이고 건설적으로 작성해주세요.`;
+    }
 
     const overallResponse = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -120,7 +144,27 @@ ${fullText.slice(0, 3000)}...
       const section = contentWithPositions[idx];
       
       if (section.text.trim().length > 50) { // 의미있는 길이의 텍스트만 분석
-        const sectionPrompt = `
+        // 해당 섹션이 빈 내용인지 확인
+        const sectionMeaningful = section.text.replace(/[\s\n\r_]+/g, ' ').trim();
+        const isSectionEmpty = sectionMeaningful.length < 20 || 
+          sectionMeaningful.includes('_______________________________');
+        
+        let sectionPrompt;
+        if (isSectionEmpty) {
+          sectionPrompt = `
+이것은 ${genre}의 일부분입니다. 현재 이 섹션은 작성되지 않았습니다.
+
+분석할 내용:
+${section.text}
+
+이 섹션에 대해 다음과 같이 안내해주세요:
+1. 이 섹션에서 작성해야 할 내용
+2. 구체적인 작성 가이드라인 
+3. 팀원들과 함께 작성할 수 있는 방법
+
+학생들이 이 부분을 완성할 수 있도록 도움을 주세요.`;
+        } else {
+          sectionPrompt = `
 이것은 ${genre}의 일부분입니다.
 현재 분석 중인 부분이 ${genre}의 어느 구조에 해당하는지 파악하고,
 해당 부분에 맞는 구체적인 피드백을 제공해주세요.
@@ -132,6 +176,7 @@ ${section.text}
 
 위 내용에 대해 2-3문장으로 구체적이고 건설적인 피드백을 작성해주세요.
 개선 제안을 포함해주세요.`;
+        }
 
         const sectionResponse = await openai.chat.completions.create({
           model: "gpt-4o-mini",
@@ -175,7 +220,8 @@ ${section.text}
     }
 
     // 성공 응답
-    const responseMessage = `✅ ${title} 문서에 ${feedbacks.length}개의 평가가 추가되었습니다.\n\n문서를 확인해보세요: https://docs.google.com/document/d/${documentId}/edit`;
+    const docLink = `https://docs.google.com/document/d/${documentId}/edit`;
+    const responseMessage = `✅ **${title}** 문서에 **${feedbacks.length}개의 평가**가 추가되었습니다!\n\n📝 [**Google Docs에서 피드백 확인하기**](${docLink})\n\n💡 **다음 단계**: \n- 각 섹션의 파란색 코멘트를 확인하세요\n- 피드백을 바탕으로 내용을 보완해주세요\n- 팀원들과 함께 토론하며 프로젝트를 발전시켜보세요`;
     
     return NextResponse.json({
       conversationId: null,
