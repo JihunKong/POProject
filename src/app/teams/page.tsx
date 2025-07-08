@@ -12,6 +12,7 @@ interface Team {
   slogan: string | null;
   description: string | null;
   inviteCode: string;
+  shortId: string;
   myRole: string;
   mySubjects: string[];
   members: Array<{
@@ -181,7 +182,12 @@ export default function TeamsPage() {
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900">{team.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xl font-bold text-gray-900">{team.name}</h3>
+                          <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded font-mono">
+                            #{team.shortId}
+                          </span>
+                        </div>
                         {team.slogan && (
                           <p className="text-sm text-gray-600 italic mt-1">&ldquo;{team.slogan}&rdquo;</p>
                         )}

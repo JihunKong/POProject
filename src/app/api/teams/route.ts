@@ -105,11 +105,28 @@ export async function POST(req: NextRequest) {
     // 팀 생성
     console.log('Creating team with userId:', user.id);
     try {
+      // 4자리 랜덤 숫자 생성 (중복 체크 포함)
+      let shortId;
+      let attempts = 0;
+      do {
+        shortId = Math.floor(1000 + Math.random() * 9000).toString();
+        const existing = await prisma.team.findUnique({
+          where: { shortId }
+        });
+        if (!existing) break;
+        attempts++;
+      } while (attempts < 10);
+      
+      if (attempts >= 10) {
+        throw new Error('Failed to generate unique team ID');
+      }
+      
       const team = await prisma.team.create({
         data: {
           name,
           slogan: slogan || null,
           description: description || null,
+          shortId,
           members: {
             create: {
               userId: user.id,

@@ -7,7 +7,7 @@ import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { 
   Plus, Calendar, Search, LayoutGrid,
-  List, BarChart3, Brain
+  List, BarChart3, Brain, Settings, Trash2
 } from 'lucide-react';
 
 interface Team {
@@ -16,6 +16,7 @@ interface Team {
   slogan: string | null;
   description: string | null;
   projectGoal: string | null;
+  shortId: string;
   members: TeamMember[];
 }
 
@@ -65,7 +66,7 @@ const CATEGORIES = [
 ];
 
 export default function TeamDashboardClient({ teamId }: { teamId: string }) {
-  useSession();
+  const { data: session } = useSession();
   const router = useRouter();
   const [team, setTeam] = useState<Team | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -78,6 +79,9 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showRoleRecommendation, setShowRoleRecommendation] = useState(false);
   const [roleRecommendations, setRoleRecommendations] = useState<string>('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isLeader, setIsLeader] = useState(false);
 
   // 새 작업 폼 상태
   const [newTask, setNewTask] = useState({
@@ -93,10 +97,18 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
     try {
       const response = await axios.get(`/api/teams/${teamId}`);
       setTeam(response.data.team);
+      
+      // 현재 사용자가 팀장인지 확인
+      if (session?.user?.email) {
+        const currentMember = response.data.team.members.find(
+          (member: TeamMember) => member.user.email === session.user.email
+        );
+        setIsLeader(currentMember?.role === 'leader');
+      }
     } catch (error) {
       console.error('Failed to fetch team:', error);
     }
-  }, [teamId]);
+  }, [teamId, session]);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -165,6 +177,27 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
     }
   };
 
+  const updateTeam = async (updates: { name?: string; slogan?: string; description?: string }) => {
+    try {
+      const response = await axios.patch(`/api/teams/${teamId}`, updates);
+      setTeam(response.data.team);
+      setShowEditModal(false);
+    } catch (error) {
+      console.error('Failed to update team:', error);
+      alert('팀 정보 수정에 실패했습니다.');
+    }
+  };
+
+  const deleteTeam = async () => {
+    try {
+      await axios.delete(`/api/teams/${teamId}`);
+      router.push('/teams');
+    } catch (error) {
+      console.error('Failed to delete team:', error);
+      alert('팀 삭제에 실패했습니다.');
+    }
+  };
+
   const filteredTasks = tasks.filter(task => {
     const matchesCategory = filterCategory === 'all' || task.category === filterCategory;
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -202,13 +235,36 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                 ← 팀 목록
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{team?.name}</h1>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold text-gray-900">{team?.name}</h1>
+                  <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded font-mono">
+                    #{team?.shortId}
+                  </span>
+                </div>
                 {team?.slogan && (
                   <p className="text-sm text-gray-600 italic">&ldquo;{team.slogan}&rdquo;</p>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {isLeader && (
+                <>
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    <Settings className="w-4 h-4" />
+                    팀 설정
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    팀 삭제
+                  </button>
+                </>
+              )}
               <button
                 onClick={getRoleRecommendations}
                 className="flex items-center gap-2 px-4 py-2 text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100"
@@ -770,6 +826,129 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                 <span>•</span>
                 <span>수정일: {new Date(selectedTask.updatedAt).toLocaleDateString('ko-KR')}</span>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Team Edit Modal */}
+      {showEditModal && isLeader && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-bold">팀 정보 수정</h2>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target as HTMLFormElement);
+              updateTeam({
+                name: formData.get('name') as string,
+                slogan: formData.get('slogan') as string,
+                description: formData.get('description') as string,
+              });
+            }}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    팀 이름
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    defaultValue={team?.name}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    팀 슬로건
+                  </label>
+                  <input
+                    type="text"
+                    name="slogan"
+                    defaultValue={team?.slogan || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    팀 설명
+                  </label>
+                  <textarea
+                    name="description"
+                    defaultValue={team?.description || ''}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  저장
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Team Delete Confirmation Modal */}
+      {showDeleteConfirm && isLeader && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-bold text-red-600">팀 삭제</h2>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700 mb-2">
+                정말로 <strong>{team?.name}</strong> 팀을 삭제하시겠습니까?
+              </p>
+              <p className="text-sm text-red-600">
+                ⚠️ 이 작업은 되돌릴 수 없습니다. 팀의 모든 데이터와 작업이 영구적으로 삭제됩니다.
+              </p>
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                취소
+              </button>
+              <button
+                onClick={deleteTeam}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                삭제
+              </button>
             </div>
           </div>
         </div>
