@@ -258,16 +258,16 @@ export default function TeamsPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              copyInviteCode(team.inviteCode);
+                              copyInviteCode(team.shortId);
                             }}
                             className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
                           >
                             <Copy className="w-3 h-3" />
-                            {copiedCode === team.inviteCode ? '복사됨!' : '복사'}
+                            {copiedCode === team.shortId ? '복사됨!' : '복사'}
                           </button>
                         </div>
                         <p className="text-xs font-mono bg-gray-100 px-2 py-1 rounded mt-1">
-                          {team.inviteCode}
+                          {team.shortId}
                         </p>
                       </div>
                     )}

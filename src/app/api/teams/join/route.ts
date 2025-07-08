@@ -17,13 +17,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invite code is required' }, { status: 400 });
     }
 
-    // 팀 찾기
-    const team = await prisma.team.findUnique({
-      where: { inviteCode },
+    // 팀 찾기 (shortId 또는 inviteCode로 검색)
+    let team = await prisma.team.findUnique({
+      where: { shortId: inviteCode },
       include: {
         members: true
       }
     });
+    
+    // shortId로 찾지 못하면 inviteCode로 시도
+    if (!team) {
+      team = await prisma.team.findUnique({
+        where: { inviteCode },
+        include: {
+          members: true
+        }
+      });
+    }
 
     if (!team) {
       return NextResponse.json({ error: 'Invalid invite code' }, { status: 404 });
