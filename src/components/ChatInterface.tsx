@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useMutation, useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axios from 'axios';
 import { Message, Conversation } from '@/types';
-import { Lightbulb, Waves, Target, Bot, User, Plus, Send, Info, Menu, X, Clock, ChevronRight } from 'lucide-react';
+import { Lightbulb, Waves, Target, Bot, User, Plus, Send, Info, Menu, X, Clock, ChevronRight, MessageSquare, FileText, HelpCircle } from 'lucide-react';
 
 const queryClient = new QueryClient();
+
+type ChatMode = 'grow' | 'assistant' | 'docs';
 
 function ChatInterfaceContent() {
   const { data: session } = useSession();
@@ -18,15 +20,18 @@ function ChatInterfaceContent() {
   const [showHistory, setShowHistory] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [chatMode, setChatMode] = useState<ChatMode>('grow');
+  const [docUrl, setDocUrl] = useState('');
+  const [docGenre, setDocGenre] = useState('감상문');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const scrollToBottom = (force = false) => {
+  const scrollToBottom = useCallback((force = false) => {
     if (!isUserScrolling || force) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
-  };
+  }, [isUserScrolling]);
 
   // Auto scroll only when new messages arrive and user is not scrolling
   useEffect(() => {
@@ -34,7 +39,7 @@ function ChatInterfaceContent() {
     if (messages.length > 0) {
       scrollToBottom();
     }
-  }, [messages.length]);
+  }, [messages.length, scrollToBottom]);
 
   // Detect user scrolling
   useEffect(() => {
@@ -96,10 +101,27 @@ function ChatInterfaceContent() {
 
   const sendMessage = useMutation({
     mutationFn: async (message: string) => {
-      const response = await axios.post('/api/chat', {
+      let endpoint = '/api/chat';
+      let payload: Record<string, unknown> = {
         conversationId,
         message,
-      });
+      };
+      
+      if (chatMode === 'assistant') {
+        endpoint = '/api/chat/rag';
+      } else if (chatMode === 'docs') {
+        endpoint = '/api/docs/feedback';
+        // Parse doc URL and genre from message
+        const match = message.match(/(.+) 첨삭을 요청합니다\. URL: (.+)/);
+        if (match) {
+          payload = {
+            genre: match[1],
+            docUrl: match[2],
+          };
+        }
+      }
+      
+      const response = await axios.post(endpoint, payload);
       return response.data;
     },
     onSuccess: (data) => {
@@ -227,27 +249,86 @@ function ChatInterfaceContent() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full w-full">
         {/* Header */}
-        <div className="bg-white/80 backdrop-blur-sm shadow-sm px-4 md:px-6 py-4">
-          <div className="flex items-center justify-between max-w-6xl mx-auto">
-            <div className="flex items-center gap-3">
-              {!showHistory && (
-                <button
-                  onClick={() => setShowHistory(true)}
-                  className="hidden lg:flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <Clock className="w-4 h-4" />
-                  대화 기록
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              )}
+        <div className="bg-white/80 backdrop-blur-sm shadow-sm">
+          <div className="px-4 md:px-6 py-4">
+            <div className="flex items-center justify-between max-w-6xl mx-auto">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
-                  <Waves className="w-6 h-6 text-white" />
+                {!showHistory && (
+                  <button
+                    onClick={() => setShowHistory(true)}
+                    className="hidden lg:flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <Clock className="w-4 h-4" />
+                    대화 기록
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+                    <Waves className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg md:text-xl font-bold text-gray-800">Pure Ocean AI 코치</h2>
+                    <p className="text-xs md:text-sm text-gray-600">
+                      {chatMode === 'grow' && 'GROW 모델 기반 학습 코칭'}
+                      {chatMode === 'assistant' && '프로젝트 도우미'}
+                      {chatMode === 'docs' && '문서 첨삭 도우미'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-lg md:text-xl font-bold text-gray-800">Pure Ocean AI 코치</h2>
-                  <p className="text-xs md:text-sm text-gray-600">GROW 모델 기반 학습 코칭</p>
-                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Tab Navigation */}
+          <div className="border-t border-gray-200">
+            <div className="max-w-6xl mx-auto px-4 md:px-6">
+              <div className="flex space-x-1">
+                <button
+                  onClick={() => {
+                    setChatMode('grow');
+                    setMessages([]);
+                    setConversationId(null);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
+                    chatMode === 'grow'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <Target className="w-4 h-4" />
+                  GROW 코칭
+                </button>
+                <button
+                  onClick={() => {
+                    setChatMode('assistant');
+                    setMessages([]);
+                    setConversationId(null);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
+                    chatMode === 'assistant'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  프로젝트 도우미
+                </button>
+                <button
+                  onClick={() => {
+                    setChatMode('docs');
+                    setMessages([]);
+                    setConversationId(null);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
+                    chatMode === 'docs'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  문서 첨삭
+                </button>
               </div>
             </div>
           </div>
@@ -268,63 +349,184 @@ function ChatInterfaceContent() {
                   <p className="text-gray-600 font-medium">대화를 불러오는 중...</p>
                 </div>
               </div>
+            ) : chatMode === 'docs' && messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center w-full max-w-4xl px-4">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-purple-400 to-pink-500 rounded-2xl flex items-center justify-center shadow-xl">
+                    <FileText className="w-10 h-10 text-white" />
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">
+                    문서 첨삭 도우미
+                  </h3>
+                  <p className="text-gray-600 mb-8 text-lg">
+                    Google Docs 문서를 공유하면 AI가 자세한 피드백을 드립니다
+                  </p>
+                  
+                  <div className="max-w-2xl mx-auto space-y-4">
+                    <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                      <h4 className="font-bold text-gray-800 mb-4">문서 정보 입력</h4>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Google Docs URL
+                          </label>
+                          <input
+                            type="text"
+                            value={docUrl}
+                            onChange={(e) => setDocUrl(e.target.value)}
+                            placeholder="https://docs.google.com/document/d/.../edit"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            편집자 권한으로 공유해주세요
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            글의 장르
+                          </label>
+                          <select
+                            value={docGenre}
+                            onChange={(e) => setDocGenre(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="감상문">감상문</option>
+                            <option value="비평문">비평문</option>
+                            <option value="보고서">보고서</option>
+                            <option value="소논문">소논문</option>
+                            <option value="논설문">논설문</option>
+                          </select>
+                        </div>
+                        
+                        <button
+                          onClick={() => {
+                            if (docUrl) {
+                              handleSuggestionClick(`${docGenre} 첨삭을 요청합니다. URL: ${docUrl}`);
+                            }
+                          }}
+                          disabled={!docUrl}
+                          className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                          첨삭 요청
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-amber-50 rounded-xl p-4 text-sm text-amber-800">
+                      <Info className="w-4 h-4 inline mr-2" />
+                      장르별 구조적 원리에 따라 전문적인 피드백을 제공합니다
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center w-full max-w-4xl px-4">
                   <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center shadow-xl">
-                    <Bot className="w-10 h-10 text-white" />
+                    {chatMode === 'grow' ? (
+                      <Target className="w-10 h-10 text-white" />
+                    ) : (
+                      <HelpCircle className="w-10 h-10 text-white" />
+                    )}
                   </div>
                   <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">
-                    안녕하세요! Pure Ocean 여러분, 무엇을 도와드릴까요?
+                    {chatMode === 'grow' ? '안녕하세요! Pure Ocean 여러분, 무엇을 도와드릴까요?' : '프로젝트 도우미입니다. 무엇이든 물어보세요!'}
                   </h3>
                   <p className="text-gray-600 mb-8 text-lg">
-                    여러분의 아이디어를 단계별로 발전시켜 드릴게요
+                    {chatMode === 'grow' ? '여러분의 아이디어를 단계별로 발전시켜 드릴게요' : '프로젝트 관련 모든 질문에 답해드립니다'}
                   </p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 justify-center">
-                    <button
-                      onClick={() => handleSuggestionClick("우리 지역 해양 문제를 조사하고 싶어요")}
-                      className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-blue-200"
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                          <Target className="w-6 h-6 text-blue-600" />
-                        </div>
-                        <h4 className="font-bold text-gray-800">목표 설정</h4>
-                      </div>
-                      <p className="text-sm text-gray-600">우리 지역 해양 문제를 조사하고 싶어요</p>
-                    </button>
+                    {chatMode === 'grow' ? (
+                      <>
+                        <button
+                          onClick={() => handleSuggestionClick("우리 지역 해양 문제를 조사하고 싶어요")}
+                          className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-blue-200"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                              <Target className="w-6 h-6 text-blue-600" />
+                            </div>
+                            <h4 className="font-bold text-gray-800">목표 설정</h4>
+                          </div>
+                          <p className="text-sm text-gray-600">우리 지역 해양 문제를 조사하고 싶어요</p>
+                        </button>
 
-                    <button
-                      onClick={() => handleSuggestionClick("해양 플라스틱 문제를 해결하는 프로젝트를 하고 싶어요")}
-                      className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-green-200"
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                          <Lightbulb className="w-6 h-6 text-green-600" />
-                        </div>
-                        <h4 className="font-bold text-gray-800">아이디어 탐색</h4>
-                      </div>
-                      <p className="text-sm text-gray-600">해양 플라스틱 문제를 해결하는 프로젝트를 하고 싶어요</p>
-                    </button>
+                        <button
+                          onClick={() => handleSuggestionClick("해양 플라스틱 문제를 해결하는 프로젝트를 하고 싶어요")}
+                          className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-green-200"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                              <Lightbulb className="w-6 h-6 text-green-600" />
+                            </div>
+                            <h4 className="font-bold text-gray-800">아이디어 탐색</h4>
+                          </div>
+                          <p className="text-sm text-gray-600">해양 플라스틱 문제를 해결하는 프로젝트를 하고 싶어요</p>
+                        </button>
 
-                    <button
-                      onClick={() => handleSuggestionClick("팀원들과 역할 분담을 어떻게 하면 좋을까요?")}
-                      className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-purple-200"
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                          <User className="w-6 h-6 text-purple-600" />
-                        </div>
-                        <h4 className="font-bold text-gray-800">팀 협업</h4>
-                      </div>
-                      <p className="text-sm text-gray-600">팀원들과 역할 분담을 어떻게 하면 좋을까요?</p>
-                    </button>
+                        <button
+                          onClick={() => handleSuggestionClick("팀원들과 역할 분담을 어떻게 하면 좋을까요?")}
+                          className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-purple-200"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                              <User className="w-6 h-6 text-purple-600" />
+                            </div>
+                            <h4 className="font-bold text-gray-800">팀 협업</h4>
+                          </div>
+                          <p className="text-sm text-gray-600">팀원들과 역할 분담을 어떻게 하면 좋을까요?</p>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleSuggestionClick("설문조사 항목을 만들어주세요")}
+                          className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-blue-200"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                              <MessageSquare className="w-6 h-6 text-blue-600" />
+                            </div>
+                            <h4 className="font-bold text-gray-800">설문 도움</h4>
+                          </div>
+                          <p className="text-sm text-gray-600">설문조사 항목을 만들어주세요</p>
+                        </button>
+
+                        <button
+                          onClick={() => handleSuggestionClick("SDGs와 연결된 프로젝트 아이디어를 제안해주세요")}
+                          className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-green-200"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                              <Lightbulb className="w-6 h-6 text-green-600" />
+                            </div>
+                            <h4 className="font-bold text-gray-800">SDGs 연계</h4>
+                          </div>
+                          <p className="text-sm text-gray-600">SDGs와 연결된 프로젝트 아이디어를 제안해주세요</p>
+                        </button>
+
+                        <button
+                          onClick={() => handleSuggestionClick("프로젝트 일정표를 만들어주세요")}
+                          className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-purple-200"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                              <Clock className="w-6 h-6 text-purple-600" />
+                            </div>
+                            <h4 className="font-bold text-gray-800">일정 계획</h4>
+                          </div>
+                          <p className="text-sm text-gray-600">프로젝트 일정표를 만들어주세요</p>
+                        </button>
+                      </>
+                    )}
                   </div>
 
                   <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
                     <Info className="w-4 h-4 inline mr-2" />
-                    GROW 모델(목표-현실-대안-실행)을 기반으로 한 단계씩 질문드릴게요
+                    {chatMode === 'grow' ? 'GROW 모델(목표-현실-대안-실행)을 기반으로 한 단계씩 질문드릴게요' : 'Pure Ocean 프로젝트 자료를 기반으로 답변해드립니다'}
                   </div>
                 </div>
               </div>
@@ -402,11 +604,12 @@ function ChatInterfaceContent() {
         </div>
 
         {/* Input Area */}
-        <div className="bg-white border-t border-gray-200 p-4">
-          <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
-            <div className="flex gap-3 items-end">
-              <div className="flex-1 relative">
-                <textarea
+        {chatMode !== 'docs' && (
+          <div className="bg-white border-t border-gray-200 p-4">
+            <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
+              <div className="flex gap-3 items-end">
+                <div className="flex-1 relative">
+                  <textarea
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -435,9 +638,10 @@ function ChatInterfaceContent() {
                 <Send className="w-5 h-5" />
                 <span className="hidden sm:inline">전송</span>
               </button>
-            </div>
-          </form>
-        </div>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );

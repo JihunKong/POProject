@@ -47,3 +47,7 @@ DEPLOYMENT.md
 deployment-secrets.md
 *-secrets.md
 *-keys.md
+
+# secrets files
+secrets.toml
+*.toml

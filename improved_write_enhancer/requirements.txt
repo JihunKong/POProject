@@ -1,0 +1,13 @@
+# Core dependencies
+streamlit
+openai
+
+# Google API dependencies
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+
+# Additional utilities
+requests
+pyyaml
