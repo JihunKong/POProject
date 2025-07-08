@@ -86,6 +86,8 @@ ${memberInfo.map((m, i) => `${i + 1}. ${m.name}
 `;
 
     console.log('Calling OpenAI API...');
+    console.log('OpenAI API key exists:', !!process.env.OPENAI_API_KEY);
+    console.log('OpenAI API key format:', process.env.OPENAI_API_KEY?.startsWith('sk-') ? 'Valid' : 'Invalid');
     
     let response;
     try {
