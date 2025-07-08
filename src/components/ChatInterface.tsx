@@ -430,7 +430,7 @@ function ChatInterfaceContent() {
                     )}
                   </div>
                   <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">
-                    {chatMode === 'grow' ? '안녕하세요! Pure Ocean 여러분, 무엇을 도와드릴까요?' : '프로젝트 도우미입니다. 무엇이든 물어보세요!'}
+                    {chatMode === 'grow' ? '안녕하세요! 여러분, 무엇을 도와드릴까요?' : '프로젝트 도우미입니다. 무엇이든 물어보세요!'}
                   </h3>
                   <p className="text-gray-600 mb-8 text-lg">
                     {chatMode === 'grow' ? '여러분의 아이디어를 단계별로 발전시켜 드릴게요' : '프로젝트 관련 모든 질문에 답해드립니다'}
