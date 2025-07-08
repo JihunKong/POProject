@@ -9,13 +9,19 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ teamId: string }> }
 ) {
+  console.log('POST /api/teams/[teamId]/recommend-roles - Starting');
+  
   try {
     const session = await auth();
+    console.log('Session:', session);
+    
     if (!session?.user?.email) {
+      console.log('No session found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { teamId } = await context.params;
+    console.log('Team ID:', teamId);
 
     // 팀 정보와 멤버 정보 가져오기
     const team = await prisma.team.findUnique({
@@ -45,6 +51,12 @@ export async function POST(
     const taskCategories = [...new Set(team.tasks.map(task => task.category))];
     const taskPhases = [...new Set(team.tasks.map(task => task.phase))];
 
+    console.log('Team data:', {
+      name: team.name,
+      memberCount: team.members.length,
+      hasProjectGoal: !!team.projectGoal
+    });
+
     // AI에게 역할 추천 요청
     const prompt = `
 Pure Ocean 프로젝트 팀의 역할 분담을 추천해주세요.
@@ -73,21 +85,31 @@ ${memberInfo.map((m, i) => `${i + 1}. ${m.name}
    - 협업 포인트: [다른 팀원과의 협업 방안]
 `;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "당신은 Pure Ocean 프로젝트의 팀 빌딩 전문가입니다. 고등학생들의 융합 과목과 능력을 고려하여 최적의 역할 분담을 제안해주세요."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 1500
-    });
+    console.log('Calling OpenAI API...');
+    
+    let response;
+    try {
+      response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "당신은 Pure Ocean 프로젝트의 팀 빌딩 전문가입니다. 고등학생들의 융합 과목과 능력을 고려하여 최적의 역할 분담을 제안해주세요."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1500
+      });
+      
+      console.log('OpenAI API response received');
+    } catch (openaiError) {
+      console.error('OpenAI API error:', openaiError);
+      throw new Error(`OpenAI API error: ${openaiError instanceof Error ? openaiError.message : 'Unknown error'}`);
+    }
 
     const recommendations = response.choices[0].message.content || '';
 

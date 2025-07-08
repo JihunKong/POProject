@@ -112,6 +112,9 @@ export default function TeamsPage() {
   };
 
   const getTaskStats = (tasks: Team['tasks']) => {
+    if (!tasks || !Array.isArray(tasks)) {
+      return { total: 0, completed: 0, inProgress: 0, pending: 0 };
+    }
     const total = tasks.length;
     const completed = tasks.filter(t => t.status === 'COMPLETED').length;
     const inProgress = tasks.filter(t => t.status === 'IN_PROGRESS').length;
@@ -194,9 +197,9 @@ export default function TeamsPage() {
 
                     {/* Team Members */}
                     <div className="mb-4">
-                      <p className="text-sm text-gray-600 mb-2">팀원 ({team.members.length}명)</p>
+                      <p className="text-sm text-gray-600 mb-2">팀원 ({team.members?.length || 0}명)</p>
                       <div className="flex -space-x-2">
-                        {team.members.slice(0, 4).map((member) => (
+                        {(team.members || []).slice(0, 4).map((member) => (
                           <div
                             key={member.id}
                             className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-medium"
@@ -205,7 +208,7 @@ export default function TeamsPage() {
                             {(member.user.name || member.user.email)[0].toUpperCase()}
                           </div>
                         ))}
-                        {team.members.length > 4 && (
+                        {team.members && team.members.length > 4 && (
                           <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-medium">
                             +{team.members.length - 4}
                           </div>
