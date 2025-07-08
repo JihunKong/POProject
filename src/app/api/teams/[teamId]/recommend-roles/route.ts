@@ -44,7 +44,11 @@ export async function POST(
     const memberInfo = team.members.map(member => ({
       name: member.user?.name || member.user?.email || 'Unknown',
       subjects: member.subjects || [],
-      currentRole: member.role || 'member'
+      currentRole: member.role || 'member',
+      strengths: member.strengths || [],
+      weaknesses: member.weaknesses || [],
+      interests: member.interests || [],
+      personality: member.personality as { type: string; traits: string[] } | null
     }));
 
     // 작업 카테고리 분석
@@ -69,14 +73,19 @@ Pure Ocean 프로젝트 팀의 역할 분담을 추천해주세요.
 팀원 정보:
 ${memberInfo.map((m, i) => `${i + 1}. ${m.name}
    - 융합 과목: ${m.subjects.join(', ')}
-   - 현재 역할: ${m.currentRole === 'leader' ? '팀장' : '팀원'}`).join('\n')}
+   - 현재 역할: ${m.currentRole === 'leader' ? '팀장' : '팀원'}
+   - 강점: ${m.strengths.length > 0 ? m.strengths.join(', ') : '미입력'}
+   - 개선할 점: ${m.weaknesses.length > 0 ? m.weaknesses.join(', ') : '미입력'}
+   - 관심 분야: ${m.interests.length > 0 ? m.interests.join(', ') : '미입력'}
+   - 성격 유형: ${m.personality?.type || '미분석'}`).join('\n')}
 
 프로젝트 작업 유형:
 - 작업 카테고리: ${taskCategories.join(', ')}
 - 프로젝트 단계: ${taskPhases.join(', ')}
 
 각 팀원에게 적합한 구체적인 역할과 담당 업무를 추천해주세요.
-팀원들의 융합 과목을 고려하여 시너지를 낼 수 있는 역할 분담을 제안해주세요.
+팀원들의 융합 과목, 강점, 관심 분야, 성격 유형을 종합적으로 고려하여 최적의 역할 분담을 제안해주세요.
+특히 팀원들의 강점을 최대한 활용하고, 개선할 점은 서로 보완할 수 있는 방향으로 역할을 배치해주세요.
 
 다음 형식으로 답변해주세요:
 1. [팀원 이름]: [추천 역할]
@@ -96,7 +105,7 @@ ${memberInfo.map((m, i) => `${i + 1}. ${m.name}
         messages: [
           {
             role: "system",
-            content: "당신은 Pure Ocean 프로젝트의 팀 빌딩 전문가입니다. 고등학생들의 융합 과목과 능력을 고려하여 최적의 역할 분담을 제안해주세요."
+            content: "당신은 Pure Ocean 프로젝트의 팀 빌딩 전문가입니다. 고등학생들의 융합 과목, 개인적 강점, 관심사, 성격 유형을 종합적으로 분석하여 최적의 역할 분담을 제안해주세요. 각 팀원이 자신의 강점을 발휘하면서도 성장할 수 있는 역할을 추천해주세요."
           },
           {
             role: "user",

@@ -92,15 +92,19 @@ model Team {
 }
 
 model TeamMember {
-  id       String   @id @default(cuid())
-  teamId   String
-  userId   String
-  role     String   @default("member")
-  subjects String[]
-  joinedAt DateTime @default(now())
-  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tasks    Task[]   @relation("AssignedTasks")
+  id          String   @id @default(cuid())
+  teamId      String
+  userId      String
+  role        String   @default("member")
+  subjects    String[]
+  strengths   String[] // 잘하는 것들
+  weaknesses  String[] // 자신 없는 것들
+  interests   String[] // 관심사
+  personality Json?    // 성격 유형 등 추가 정보
+  joinedAt    DateTime @default(now())
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks       Task[]   @relation("AssignedTasks")
 
   @@unique([teamId, userId])
   @@index([teamId])

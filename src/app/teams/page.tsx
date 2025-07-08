@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { Users, Plus, Copy, CheckCircle, Clock, AlertCircle, UserPlus } from 'lucide-react';
+import PersonalityTest from '@/components/PersonalityTest';
 
 interface Team {
   id: string;
@@ -43,6 +44,9 @@ export default function TeamsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showPersonalityTest, setShowPersonalityTest] = useState(false);
+  const [pendingTeamAction, setPendingTeamAction] = useState<'create' | 'join' | null>(null);
+  const [personalityProfile, setPersonalityProfile] = useState<any>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // 팀 생성 폼 상태
@@ -82,24 +86,57 @@ export default function TeamsPage() {
     }
   };
 
-  const createTeam = async () => {
+  const handlePersonalityComplete = (profile: any) => {
+    setPersonalityProfile(profile);
+    setShowPersonalityTest(false);
+    
+    if (pendingTeamAction === 'create') {
+      createTeam(profile);
+    } else if (pendingTeamAction === 'join') {
+      joinTeam(profile);
+    }
+  };
+
+  const createTeam = async (profile?: any) => {
+    if (!profile && !personalityProfile) {
+      setShowPersonalityTest(true);
+      setPendingTeamAction('create');
+      return;
+    }
+
     try {
-      const response = await axios.post('/api/teams', newTeam);
+      const profileData = profile || personalityProfile;
+      const response = await axios.post('/api/teams', {
+        ...newTeam,
+        profile: profileData
+      });
       setTeams([...teams, response.data.team]);
       setShowCreateModal(false);
       setNewTeam({ name: '', slogan: '', description: '', subjects: [] });
+      setPersonalityProfile(null);
     } catch (error) {
       console.error('Failed to create team:', error);
       alert('팀 생성에 실패했습니다.');
     }
   };
 
-  const joinTeam = async () => {
+  const joinTeam = async (profile?: any) => {
+    if (!profile && !personalityProfile) {
+      setShowPersonalityTest(true);
+      setPendingTeamAction('join');
+      return;
+    }
+
     try {
-      const response = await axios.post('/api/teams/join', joinData);
+      const profileData = profile || personalityProfile;
+      const response = await axios.post('/api/teams/join', {
+        ...joinData,
+        profile: profileData
+      });
       setTeams([...teams, response.data.team]);
       setShowJoinModal(false);
       setJoinData({ inviteCode: '', subjects: [] });
+      setPersonalityProfile(null);
     } catch (error: unknown) {
       console.error('Failed to join team:', error);
       alert((error as { response?: { data?: { error?: string } } }).response?.data?.error || '팀 가입에 실패했습니다.');
@@ -424,7 +461,7 @@ export default function TeamsPage() {
                 취소
               </button>
               <button
-                onClick={joinTeam}
+                onClick={() => joinTeam()}
                 disabled={!joinData.inviteCode || joinData.subjects.length < 2}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
@@ -433,6 +470,17 @@ export default function TeamsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Personality Test Modal */}
+      {showPersonalityTest && (
+        <PersonalityTest
+          onComplete={handlePersonalityComplete}
+          onClose={() => {
+            setShowPersonalityTest(false);
+            setPendingTeamAction(null);
+          }}
+        />
       )}
     </div>
   );

@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, slogan, description, subjects } = await req.json();
-    console.log('Request body:', { name, slogan, description, subjects });
+    const { name, slogan, description, subjects, profile } = await req.json();
+    console.log('Request body:', { name, slogan, description, subjects, profile });
     
     if (!name) {
       return NextResponse.json({ error: 'Team name is required' }, { status: 400 });
@@ -131,7 +131,11 @@ export async function POST(req: NextRequest) {
             create: {
               userId: user.id,
               role: 'leader',
-              subjects: subjects || []
+              subjects: subjects || [],
+              strengths: profile?.strengths || [],
+              weaknesses: profile?.weaknesses || [],
+              interests: profile?.interests || [],
+              personality: profile?.personality || null
             }
           }
         },

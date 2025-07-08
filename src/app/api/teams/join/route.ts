@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { inviteCode, subjects } = await req.json();
+    const { inviteCode, subjects, profile } = await req.json();
     
     if (!inviteCode) {
       return NextResponse.json({ error: 'Invite code is required' }, { status: 400 });
@@ -74,7 +74,11 @@ export async function POST(req: NextRequest) {
         teamId: team.id,
         userId: user.id,
         role: 'member',
-        subjects: subjects || []
+        subjects: subjects || [],
+        strengths: profile?.strengths || [],
+        weaknesses: profile?.weaknesses || [],
+        interests: profile?.interests || [],
+        personality: profile?.personality || null
       }
     });
 
