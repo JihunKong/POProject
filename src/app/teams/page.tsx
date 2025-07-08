@@ -46,7 +46,15 @@ export default function TeamsPage() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showPersonalityTest, setShowPersonalityTest] = useState(false);
   const [pendingTeamAction, setPendingTeamAction] = useState<'create' | 'join' | null>(null);
-  const [personalityProfile, setPersonalityProfile] = useState<any>(null);
+  const [personalityProfile, setPersonalityProfile] = useState<{
+    strengths: string[];
+    weaknesses: string[];
+    interests: string[];
+    personality: {
+      type: string;
+      traits: string[];
+    };
+  } | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // 팀 생성 폼 상태
@@ -86,7 +94,15 @@ export default function TeamsPage() {
     }
   };
 
-  const handlePersonalityComplete = (profile: any) => {
+  const handlePersonalityComplete = (profile: {
+    strengths: string[];
+    weaknesses: string[];
+    interests: string[];
+    personality: {
+      type: string;
+      traits: string[];
+    };
+  }) => {
     setPersonalityProfile(profile);
     setShowPersonalityTest(false);
     
@@ -97,7 +113,15 @@ export default function TeamsPage() {
     }
   };
 
-  const createTeam = async (profile?: any) => {
+  const createTeam = async (profile?: {
+    strengths: string[];
+    weaknesses: string[];
+    interests: string[];
+    personality: {
+      type: string;
+      traits: string[];
+    };
+  }) => {
     if (!profile && !personalityProfile) {
       setShowPersonalityTest(true);
       setPendingTeamAction('create');
@@ -120,7 +144,15 @@ export default function TeamsPage() {
     }
   };
 
-  const joinTeam = async (profile?: any) => {
+  const joinTeam = async (profile?: {
+    strengths: string[];
+    weaknesses: string[];
+    interests: string[];
+    personality: {
+      type: string;
+      traits: string[];
+    };
+  }) => {
     if (!profile && !personalityProfile) {
       setShowPersonalityTest(true);
       setPendingTeamAction('join');
@@ -396,7 +428,7 @@ export default function TeamsPage() {
                 취소
               </button>
               <button
-                onClick={createTeam}
+                onClick={() => createTeam()}
                 disabled={!newTeam.name || newTeam.subjects.length < 2}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >

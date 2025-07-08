@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Brain, Heart, Lightbulb, Target, Users, Zap, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Brain, Heart, Target, Users, Zap, ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface PersonalityTestProps {
   onComplete: (profile: {
@@ -67,12 +67,22 @@ const INTERESTS = [
 
 export default function PersonalityTest({ onComplete, onClose }: PersonalityTestProps) {
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, {
+    value: string;
+    label: string;
+    trait?: string;
+    interest?: string;
+  }>>({});
   const [selectedStrengths, setSelectedStrengths] = useState<string[]>([]);
   const [selectedWeaknesses, setSelectedWeaknesses] = useState<string[]>([]);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
 
-  const handleAnswer = (questionId: string, answer: any) => {
+  const handleAnswer = (questionId: string, answer: {
+    value: string;
+    label: string;
+    trait?: string;
+    interest?: string;
+  }) => {
     setAnswers({ ...answers, [questionId]: answer });
     if (step < QUESTIONS.length - 1) {
       setStep(step + 1);
@@ -89,8 +99,8 @@ export default function PersonalityTest({ onComplete, onClose }: PersonalityTest
 
   const completeTest = () => {
     // 성격 유형 분석
-    const traits = Object.values(answers).map((a: any) => a.trait).filter(Boolean);
-    const interests = Object.values(answers).map((a: any) => a.interest).filter(Boolean);
+    const traits = Object.values(answers).map((a) => a.trait).filter((t): t is string => Boolean(t));
+    const interests = Object.values(answers).map((a) => a.interest).filter((i): i is string => Boolean(i));
     
     let personalityType = 'Balanced';
     if (traits.includes('leadership')) personalityType = 'Leader';
