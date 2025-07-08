@@ -20,6 +20,15 @@ export async function requireRole(roles: string[]) {
 export function handleApiError(error: unknown) {
   console.error('API Error:', error);
   
+  // Log full error details in development
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Full error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error: error
+    });
+  }
+  
   const errorMessage = error instanceof Error ? error.message : 'Unknown error';
   
   if (errorMessage === 'Unauthorized') {
@@ -36,7 +45,12 @@ export function handleApiError(error: unknown) {
     });
   }
   
-  return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
+  // In development, include more error details
+  const errorResponse = process.env.NODE_ENV === 'development' 
+    ? { error: 'Internal Server Error', details: errorMessage }
+    : { error: 'Internal Server Error' };
+  
+  return new Response(JSON.stringify(errorResponse), {
     status: 500,
     headers: { 'Content-Type': 'application/json' },
   });
