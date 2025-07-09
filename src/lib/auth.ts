@@ -17,6 +17,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           prompt: 'select_account', // 계정 선택 화면 표시
         },
       },
+      allowDangerousEmailAccountLinking: true, // 이메일 기반 계정 자동 연결 허용
     }),
   ],
   callbacks: {
@@ -24,18 +25,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       console.log('SignIn attempt:', {
         email: user?.email,
         name: user?.name,
-        provider: account?.provider,
-        accountId: account?.providerAccountId
+        provider: account?.provider
       });
-      
-      // 특정 이메일 디버깅
-      if (user?.email === 'mokpo20_t70@h.jne.go.kr') {
-        console.log('Special debug for mokpo20_t70@h.jne.go.kr:', {
-          user,
-          account,
-          profile
-        });
-      }
       
       // Google 계정인지 확인
       if (account?.provider !== 'google') {
@@ -43,39 +34,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return false;
       }
       
-      try {
-        // 이메일로 기존 사용자 확인
-        if (user?.email) {
-          const existingUser = await prisma.user.findUnique({
-            where: { email: user.email },
-            include: { accounts: true }
-          });
-          
-          console.log('Existing user check:', {
-            email: user.email,
-            found: !!existingUser,
-            hasAccounts: existingUser?.accounts?.length || 0
-          });
-          
-          // 기존 사용자가 있고 Google 계정이 연결되어 있지 않은 경우
-          if (existingUser && account) {
-            const hasGoogleAccount = existingUser.accounts.some(
-              acc => acc.provider === 'google' && acc.providerAccountId === account.providerAccountId
-            );
-            
-            if (!hasGoogleAccount) {
-              console.log('Linking Google account to existing user');
-              // 계정이 자동으로 연결됨 (allowDangerousEmailAccountLinking: true 설정으로)
-            }
-          }
-        }
-        
-        // 모든 Google 계정 허용
-        return true;
-      } catch (error) {
-        console.error('SignIn error:', error);
-        return false;
-      }
+      // 모든 Google 계정 허용
+      // allowDangerousEmailAccountLinking이 true이므로 
+      // 동일한 이메일의 기존 사용자와 자동으로 연결됨
+      return true;
     },
     async session({ session, token }) {
       if (session?.user && token.sub) {
