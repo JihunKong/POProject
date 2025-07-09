@@ -35,9 +35,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           account,
           profile
         });
-        
-        // 명시적으로 이 이메일 허용
-        return true;
       }
       
       // Google 계정인지 확인
@@ -47,6 +44,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       
       try {
+        // 이메일로 기존 사용자 확인
+        if (user?.email) {
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email },
+            include: { accounts: true }
+          });
+          
+          console.log('Existing user check:', {
+            email: user.email,
+            found: !!existingUser,
+            hasAccounts: existingUser?.accounts?.length || 0
+          });
+          
+          // 기존 사용자가 있고 Google 계정이 연결되어 있지 않은 경우
+          if (existingUser && account) {
+            const hasGoogleAccount = existingUser.accounts.some(
+              acc => acc.provider === 'google' && acc.providerAccountId === account.providerAccountId
+            );
+            
+            if (!hasGoogleAccount) {
+              console.log('Linking Google account to existing user');
+              // 계정이 자동으로 연결됨 (allowDangerousEmailAccountLinking: true 설정으로)
+            }
+          }
+        }
+        
         // 모든 Google 계정 허용
         return true;
       } catch (error) {
@@ -54,18 +77,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return false;
       }
     },
-    async session({ session, token }) {
-      if (session?.user && token.sub) {
-        session.user.id = token.sub;
+    async session({ session, user }) {
+      if (session?.user && user) {
+        session.user.id = user.id;
       }
       
       return session;
-    },
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-      }
-      return token;
     },
   },
   pages: {
@@ -73,7 +90,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: '/auth-error',
   },
   session: {
-    strategy: 'jwt',
+    strategy: 'database',
+    maxAge: 30 * 24 * 60 * 60, // 30일
   },
   secret: process.env.NEXTAUTH_SECRET,
 });
