@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   trustHost: true,
-  debug: process.env.NODE_ENV === 'development', // 개발 환경에서만 디버그 활성화
+  debug: true, // 디버깅을 위해 임시로 활성화
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -24,11 +24,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       console.log('SignIn attempt:', {
         email: user?.email,
         name: user?.name,
-        provider: account?.provider
+        provider: account?.provider,
+        accountId: account?.providerAccountId
       });
       
-      // 모든 Google 계정 허용
-      return true;
+      // 특정 이메일 디버깅
+      if (user?.email === 'mokpo20_t70@h.jne.go.kr') {
+        console.log('Special debug for mokpo20_t70@h.jne.go.kr:', {
+          user,
+          account,
+          profile
+        });
+        
+        // 명시적으로 이 이메일 허용
+        return true;
+      }
+      
+      // Google 계정인지 확인
+      if (account?.provider !== 'google') {
+        console.log('Non-Google provider attempted:', account?.provider);
+        return false;
+      }
+      
+      try {
+        // 모든 Google 계정 허용
+        return true;
+      } catch (error) {
+        console.error('SignIn error:', error);
+        return false;
+      }
     },
     async session({ session, token }) {
       if (session?.user && token.sub) {

@@ -7,6 +7,10 @@ import { Suspense } from 'react';
 function AuthErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
+  
+  // 디버깅을 위한 로그
+  console.log('Auth error page - Error type:', error);
+  console.log('All search params:', Object.fromEntries(searchParams.entries()));
 
   const getErrorMessage = () => {
     switch (error) {
