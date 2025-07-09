@@ -82,6 +82,14 @@ function LoginContent() {
                 귀하의 정보는 안전하게 보호됩니다
               </p>
             </div>
+            
+            {/* 임시 안내 메시지 */}
+            <div className="mt-4 p-3 bg-blue-50/70 backdrop-blur-sm rounded-xl border border-blue-200/50">
+              <p className="text-xs text-blue-700 text-center">
+                <strong>📢 안내:</strong> 기존 계정으로 Google 로그인이 안 되시는 분들은 
+                다시 한 번 시도해주세요. 자동으로 계정이 연결됩니다.
+              </p>
+            </div>
           </div>
         </div>
 
