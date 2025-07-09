@@ -8,8 +8,9 @@ import ReactMarkdown from 'react-markdown';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { 
   Plus, Calendar, Search, LayoutGrid,
-  List, BarChart3, Brain, Settings, Trash2
+  List, BarChart3, Brain, Settings, Trash2, FileText
 } from 'lucide-react';
+import { predefinedTasks, taskCategories } from '@/lib/predefined-tasks';
 
 interface Team {
   id: string;
@@ -84,6 +85,8 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [showPredefinedTasks, setShowPredefinedTasks] = useState(false);
+  const [selectedTaskCategory, setSelectedTaskCategory] = useState<string>('');
 
   // 새 작업 폼 상태
   const [newTask, setNewTask] = useState({
@@ -290,6 +293,13 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
               >
                 <Plus className="w-4 h-4" />
                 새 작업
+              </button>
+              <button
+                onClick={() => setShowPredefinedTasks(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                <FileText className="w-4 h-4" />
+                템플릿에서 선택
               </button>
             </div>
           </div>
@@ -962,6 +972,128 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                 삭제
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Predefined Tasks Modal */}
+      {showPredefinedTasks && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-bold">작업 템플릿 선택</h2>
+              <button
+                onClick={() => {
+                  setShowPredefinedTasks(false);
+                  setSelectedTaskCategory('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Category Selection */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">카테고리 선택</h3>
+              <div className="grid grid-cols-4 gap-2">
+                {taskCategories.map((cat) => (
+                  <button
+                    key={cat.value}
+                    onClick={() => setSelectedTaskCategory(cat.value)}
+                    className={`px-4 py-2 rounded-lg border transition-colors ${
+                      selectedTaskCategory === cat.value
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {cat.icon} {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Tasks List */}
+            {selectedTaskCategory && (
+              <div className="space-y-4">
+                <h3 className="font-medium text-gray-900">
+                  {taskCategories.find(c => c.value === selectedTaskCategory)?.label} 작업 템플릿
+                </h3>
+                {predefinedTasks
+                  .find(cat => cat.category === selectedTaskCategory)
+                  ?.tasks.map((task, index) => (
+                    <div
+                      key={index}
+                      className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{task.title}</h4>
+                          <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                          <div className="flex items-center gap-4 mt-2 text-sm">
+                            <span className={`px-2 py-1 rounded ${
+                              task.priority === 'high' 
+                                ? 'bg-red-100 text-red-700'
+                                : task.priority === 'medium'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-green-100 text-green-700'
+                            }`}>
+                              {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
+                            </span>
+                            <span className="text-gray-500">단계: {task.phase}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const response = await axios.post(`/api/teams/${teamId}/tasks`, {
+                                title: task.title,
+                                description: task.description,
+                                priority: task.priority,
+                                phase: task.phase,
+                                category: selectedTaskCategory,
+                                checklist: task.checklist.map(item => ({
+                                  text: item,
+                                  completed: false
+                                }))
+                              });
+                              
+                              if (response.data.task) {
+                                await fetchTeamData();
+                                setShowPredefinedTasks(false);
+                                setSelectedTaskCategory('');
+                                
+                                // 자동으로 AI 역할 추천 실행
+                                await getRoleRecommendations();
+                              }
+                            } catch (error) {
+                              console.error('Failed to create task:', error);
+                              alert('작업 생성에 실패했습니다.');
+                            }
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                        >
+                          선택
+                        </button>
+                      </div>
+                      {/* Checklist Preview */}
+                      <div className="mt-3 pt-3 border-t">
+                        <p className="text-sm font-medium text-gray-700 mb-1">체크리스트:</p>
+                        <ul className="text-sm text-gray-600 space-y-1">
+                          {task.checklist.slice(0, 3).map((item, i) => (
+                            <li key={i} className="flex items-center gap-2">
+                              <span className="text-gray-400">•</span> {item}
+                            </li>
+                          ))}
+                          {task.checklist.length > 3 && (
+                            <li className="text-gray-400">... 외 {task.checklist.length - 3}개</li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       )}

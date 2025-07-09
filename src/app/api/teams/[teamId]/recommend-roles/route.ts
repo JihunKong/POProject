@@ -126,17 +126,24 @@ ${memberInfo.map((m, i) => `${i + 1}. ${m.name}
 
     // 추천 결과 저장 (선택사항) - 에러 발생 시 무시
     try {
-      await prisma.analytics.create({
-        data: {
-          userId: session.user.email,
-          eventType: 'role_recommendation',
-          eventData: {
-            teamId,
-            recommendations: recommendations.slice(0, 500), // 길이 제한
-            timestamp: new Date().toISOString()
-          }
-        }
+      // 사용자 찾기
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email }
       });
+      
+      if (user) {
+        await prisma.analytics.create({
+          data: {
+            userId: user.id,
+            eventType: 'role_recommendation',
+            eventData: {
+              teamId,
+              recommendations: recommendations.slice(0, 500), // 길이 제한
+              timestamp: new Date().toISOString()
+            }
+          }
+        });
+      }
     } catch (analyticsError) {
       console.error('Failed to save analytics:', analyticsError);
       // Analytics 저장 실패는 무시하고 계속 진행

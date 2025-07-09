@@ -20,7 +20,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn() {
+    async signIn({ user, account, profile }) {
+      console.log('SignIn attempt:', {
+        email: user?.email,
+        name: user?.name,
+        provider: account?.provider
+      });
+      
       // 모든 Google 계정 허용
       return true;
     },
