@@ -162,6 +162,23 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
     }
   };
 
+  const updateTaskAssignees = async (taskId: string, assigneeIds: string[]) => {
+    try {
+      await axios.patch(`/api/teams/${teamId}/tasks/${taskId}`, { assignees: assigneeIds });
+      await fetchTeamData(); // 전체 데이터 새로고침
+      
+      // 선택된 작업 업데이트
+      if (selectedTask && selectedTask.id === taskId) {
+        const updatedTask = tasks.find(t => t.id === taskId);
+        if (updatedTask) {
+          setSelectedTask(updatedTask);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update task assignees:', error);
+    }
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onDragEnd = async (result: any) => {
     if (!result.destination) return;
@@ -822,23 +839,42 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
 
             <div className="mb-6">
               <h3 className="font-medium mb-2">담당자</h3>
-              <div className="flex flex-wrap gap-2">
-                {selectedTask.assignees.map((assignee) => (
-                  <div
-                    key={assignee.id}
-                    className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full"
-                  >
-                    <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-medium">
-                      {(assignee.user.name || assignee.user.email)[0].toUpperCase()}
-                    </div>
-                    <span className="text-sm">
-                      {assignee.user.name || assignee.user.email}
-                      <span className="text-xs text-gray-500 ml-1">
-                        ({assignee.subjects.join(', ')})
-                      </span>
-                    </span>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                {team?.members.map((member) => {
+                  const isAssigned = selectedTask.assignees.some(a => a.userId === member.userId);
+                  return (
+                    <label key={member.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isAssigned}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            // 담당자 추가
+                            updateTaskAssignees(selectedTask.id, [...selectedTask.assignees.map(a => a.userId), member.userId]);
+                          } else {
+                            // 담당자 제거
+                            updateTaskAssignees(selectedTask.id, selectedTask.assignees.filter(a => a.userId !== member.userId).map(a => a.userId));
+                          }
+                        }}
+                        className="rounded text-blue-600"
+                      />
+                      <div className="flex items-center gap-2 flex-1">
+                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-medium">
+                          {(member.user.name || member.user.email)[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">
+                            {member.user.name || member.user.email}
+                            {member.role === 'leader' && <span className="ml-1 text-xs text-blue-600">(팀장)</span>}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {member.subjects.join(', ')}
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
@@ -996,7 +1032,7 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
             {/* Category Selection */}
             <div className="mb-6">
               <h3 className="text-sm font-medium text-gray-700 mb-2">카테고리 선택</h3>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {taskCategories.map((cat) => (
                   <button
                     key={cat.value}
@@ -1071,9 +1107,9 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                               alert('작업 생성에 실패했습니다.');
                             }
                           }}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap"
                         >
-                          선택
+                          작업 추가
                         </button>
                       </div>
                       {/* Checklist Preview */}

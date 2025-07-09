@@ -67,6 +67,17 @@ export async function PATCH(
             set: updates.assignedTo.map((id: string) => ({ id }))
           }
         }),
+        ...(updates.assignees && {
+          assignees: {
+            set: [], // 먼저 모든 연결 제거
+            connect: updates.assignees.map((userId: string) => ({
+              teamId_userId: {
+                teamId,
+                userId
+              }
+            }))
+          }
+        }),
       },
       include: {
         assignees: {
