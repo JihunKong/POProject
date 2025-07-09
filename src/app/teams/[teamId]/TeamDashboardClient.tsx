@@ -841,7 +841,7 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
               <h3 className="font-medium mb-2">담당자</h3>
               <div className="space-y-2">
                 {team?.members.map((member) => {
-                  const isAssigned = selectedTask.assignees.some(a => a.userId === member.userId);
+                  const isAssigned = selectedTask.assignees.some(a => a.user.id === member.user.id);
                   return (
                     <label key={member.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
                       <input
@@ -850,10 +850,10 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                         onChange={(e) => {
                           if (e.target.checked) {
                             // 담당자 추가
-                            updateTaskAssignees(selectedTask.id, [...selectedTask.assignees.map(a => a.userId), member.userId]);
+                            updateTaskAssignees(selectedTask.id, [...selectedTask.assignees.map(a => a.user.id), member.user.id]);
                           } else {
                             // 담당자 제거
-                            updateTaskAssignees(selectedTask.id, selectedTask.assignees.filter(a => a.userId !== member.userId).map(a => a.userId));
+                            updateTaskAssignees(selectedTask.id, selectedTask.assignees.filter(a => a.user.id !== member.user.id).map(a => a.user.id));
                           }
                         }}
                         className="rounded text-blue-600"
