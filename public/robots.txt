@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://xn--ox6bo4n.com/sitemap.xml
+
+# Disallow private pages
+Disallow: /api/
+Disallow: /auth-error
+Disallow: /_next/
+
+# Allow important pages for SEO
+Allow: /
+Allow: /login
+Allow: /home
+Allow: /teams
+Allow: /chat
