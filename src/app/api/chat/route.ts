@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { openai, SOCRATIC_SYSTEM_PROMPT } from '@/lib/openai';
+import { openai, SOCRATIC_SYSTEM_PROMPT, DEFAULT_MODEL } from '@/lib/openai';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     ];
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: DEFAULT_MODEL,
       messages,
       temperature: 0.7,
       max_tokens: 150,

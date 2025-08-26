@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { openai } from '@/lib/openai';
+import { openai, DEFAULT_MODEL } from '@/lib/openai';
 import { handleApiError } from '@/lib/api-helpers';
 
 // POST: AI 역할 추천
@@ -94,14 +94,14 @@ ${memberInfo.map((m, i) => `${i + 1}. ${m.name}
    - 협업 포인트: [다른 팀원과의 협업 방안]
 `;
 
-    console.log('Calling OpenAI API...');
-    console.log('OpenAI API key exists:', !!process.env.OPENAI_API_KEY);
-    console.log('OpenAI API key format:', process.env.OPENAI_API_KEY?.startsWith('sk-') ? 'Valid' : 'Invalid');
+    console.log('Calling Upstage AI API...');
+    console.log('Upstage API key exists:', !!process.env.UPSTAGE_API_KEY);
+    console.log('Upstage API key format:', process.env.UPSTAGE_API_KEY?.startsWith('up_') ? 'Valid' : 'Invalid');
     
     let response;
     try {
       response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: DEFAULT_MODEL,
         messages: [
           {
             role: "system",

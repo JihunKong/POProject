@@ -43,7 +43,8 @@ npm start
 # Database commands
 npx prisma db push          # Sync schema with database
 npx prisma studio           # Open database GUI
-npm run db:seed            # Initialize sample data
+npm run db:seed            # Initialize sample data (via tsx scripts/init-db.ts)
+npx prisma generate         # Generate Prisma client
 
 # Linting and type checking
 npm run lint               # Run ESLint
@@ -60,14 +61,15 @@ npx tsc --noEmit          # TypeScript type check
    - Session management with Prisma adapter
 
 2. **AI Integration**
-   - Socratic coaching chatbot using OpenAI GPT-4 (Next.js app)
+   - Socratic coaching chatbot using Upstage Solar-Pro2 model (Next.js app)
    - Document feedback system using Anthropic Claude (Python app)
    - Google Docs API integration for automated commenting
 
 3. **Data Layer**
    - PostgreSQL database with Prisma ORM
-   - Schema includes: User, Team, Progress, ChatMessage, Analytics
-   - Real-time progress tracking and analytics
+   - Schema includes: User, Team, TeamMember, Progress, Task, Message, Conversation, Analytics
+   - Real-time progress tracking and team management
+   - Role-based access control with Student/Teacher/Admin roles
 
 4. **Deployment Architecture**
    - Railway platform for Next.js hosting
@@ -94,6 +96,12 @@ npx tsc --noEmit          # TypeScript type check
    - Progress calculations based on team activities
    - Teacher dashboard aggregates class-wide metrics
 
+4. **Team Management Flow**
+   - Students join teams via invite codes
+   - Team members assigned roles and tasks via `/api/teams/[teamId]/tasks`
+   - Progress tracking through task completion status
+   - Role recommendations based on member profiles
+
 ## Environment Variables
 
 Both applications require specific environment variables:
@@ -103,7 +111,7 @@ Both applications require specific environment variables:
 - `NEXTAUTH_URL` - Application URL
 - `NEXTAUTH_SECRET` - Auth encryption key
 - `GOOGLE_CLIENT_ID/SECRET` - OAuth credentials
-- `OPENAI_API_KEY` - GPT-4 access
+- `UPSTAGE_API_KEY` - Upstage Solar-Pro2 model access
 - `ALLOWED_EMAIL_DOMAIN` - School domain restriction
 
 ### Python App

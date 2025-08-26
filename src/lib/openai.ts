@@ -1,16 +1,20 @@
 import OpenAI from 'openai';
 
-// Initialize OpenAI client with fallback for build time
-const apiKey = process.env.OPENAI_API_KEY || 'dummy-key-for-build';
+// Initialize Upstage AI client with fallback for build time
+const apiKey = process.env.UPSTAGE_API_KEY || 'dummy-key-for-build';
 
 // Log API key status (without exposing the actual key)
 if (process.env.NODE_ENV === 'development') {
-  console.log('OpenAI API Key status:', apiKey.startsWith('sk-') ? 'Valid format' : 'Invalid format');
+  console.log('Upstage API Key status:', apiKey.startsWith('up_') ? 'Valid format' : 'Invalid format');
 }
 
 export const openai = new OpenAI({
   apiKey: apiKey,
+  baseURL: "https://api.upstage.ai/v1"
 });
+
+// Default model name for Upstage AI
+export const DEFAULT_MODEL = 'solar-pro2';
 
 export const SOCRATIC_SYSTEM_PROMPT = `당신은 완도고등학교 Pure Ocean 학생들을 위한 GROW 코칭 모델 기반 챗봇입니다.
 

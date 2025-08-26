@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { openai } from '@/lib/openai';
+import { openai, DEFAULT_MODEL } from '@/lib/openai';
 import { prisma } from '@/lib/prisma';
 import { loadProjectDocuments, getRelevantContext } from '@/lib/rag';
 import { handleApiError } from '@/lib/api-helpers';
@@ -81,7 +81,7 @@ ${context}
 5. 컨텍스트에 없는 정보는 일반적인 지식을 바탕으로 답변하되, 추측임을 명시하세요`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: DEFAULT_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: message }

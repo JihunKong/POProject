@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { openai } from '@/lib/openai';
+import { openai, DEFAULT_MODEL } from '@/lib/openai';
 
 export async function GET() {
   console.log('Testing OpenAI API...');
@@ -7,7 +7,7 @@ export async function GET() {
   try {
     // 간단한 테스트 요청
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: DEFAULT_MODEL,
       messages: [
         {
           role: "system",

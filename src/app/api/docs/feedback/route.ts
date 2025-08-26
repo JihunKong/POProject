@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { openai } from '@/lib/openai';
+import { openai, DEFAULT_MODEL } from '@/lib/openai';
 import { 
   getGoogleDocsService, 
   extractDocumentId, 
@@ -93,7 +93,7 @@ ${fullText.slice(0, 3000)}...
     }
 
     const overallResponse = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: DEFAULT_MODEL,
       messages: [
         {
           role: "system",
@@ -179,7 +179,7 @@ ${section.text}
         }
 
         const sectionResponse = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: DEFAULT_MODEL,
           messages: [
             {
               role: "system",
