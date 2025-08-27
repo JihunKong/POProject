@@ -33,16 +33,17 @@ export async function GET(request: Request) {
 
     // Try to import and test NextAuth
     try {
-      const { auth } = await import('@/lib/auth');
+      await import('@/lib/auth');
       debugInfo.nextAuthTest = {
         message: 'NextAuth import successful',
         authFunction: 'Available',
         configurationStatus: 'Loaded'
       };
-    } catch (authError: any) {
+    } catch (authError: unknown) {
+      const error = authError as Error;
       debugInfo.nextAuthTest = {
         message: 'NextAuth import failed',
-        error: authError?.message || 'Unknown auth error',
+        error: error?.message || 'Unknown auth error',
         configurationStatus: 'Failed'
       };
     }
@@ -53,11 +54,12 @@ export async function GET(request: Request) {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as Error;
     return NextResponse.json({ 
       error: 'Debug endpoint error', 
-      message: error?.message || 'Unknown error',
-      stack: error?.stack?.substring(0, 500)
+      message: err?.message || 'Unknown error',
+      stack: err?.stack?.substring(0, 500)
     }, { status: 500 });
   }
 }
