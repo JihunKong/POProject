@@ -27,7 +27,8 @@ export async function GET(request: Request) {
       },
       nextAuthTest: {
         message: 'Testing NextAuth availability',
-        tryImport: 'Attempting to import auth...'
+        authFunction: 'Unknown',
+        configurationStatus: 'Testing'
       }
     };
 
