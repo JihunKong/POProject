@@ -78,9 +78,9 @@ export default function PrivacyPage() {
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-gray-700">
                 <strong>개인정보 보호책임자</strong><br />
-                담당자: [담당 교사명]<br />
-                연락처: [이메일 주소]<br />
-                소속: 완도고등학교
+                담당자: 공지훈<br />
+                연락처: purusil55@gmail.com<br />
+                소속: 완도고등학교 국어교사
               </p>
             </div>
           </section>
