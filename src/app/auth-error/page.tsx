@@ -34,8 +34,10 @@ function AuthErrorContent() {
         return '로그인 정보가 올바르지 않습니다.';
       case 'AccessDenied':
         return '접근이 거부되었습니다.';
+      case 'Configuration':
+        return '인증 시스템 설정에 문제가 있습니다. 잠시 후 다시 시도해주세요.';
       default:
-        return '인증 중 알 수 없는 오류가 발생했습니다.';
+        return `인증 중 오류가 발생했습니다. (${error || 'Unknown'})`;
     }
   };
 
