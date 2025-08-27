@@ -25,24 +25,21 @@ export async function GET(request: Request) {
         'x-forwarded-for': request.headers.get('x-forwarded-for'),
         'accept': request.headers.get('accept'),
       },
-      nextAuthTest: {
-        message: 'Testing NextAuth availability',
-        authFunction: 'Unknown',
-        configurationStatus: 'Testing'
-      }
+      nextAuthTest: 'Testing NextAuth availability...'
     };
 
     // Try to import and test NextAuth
     try {
       await import('@/lib/auth');
       debugInfo.nextAuthTest = {
+        status: 'SUCCESS',
         message: 'NextAuth import successful',
-        authFunction: 'Available',
         configurationStatus: 'Loaded'
       };
     } catch (authError: unknown) {
       const error = authError as Error;
       debugInfo.nextAuthTest = {
+        status: 'FAILED',
         message: 'NextAuth import failed',
         error: error?.message || 'Unknown auth error',
         configurationStatus: 'Failed'
