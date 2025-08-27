@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     if (conversationId) {
       conversation = await prisma.conversation.findUnique({
         where: { id: conversationId, userId: user.id },
+        include: { messages: { orderBy: { createdAt: 'asc' } } }
       });
     }
 
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           title: message.slice(0, 50) + '...',
         },
+        include: { messages: true }
       });
     }
 
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // OpenAI API 호출
+    // Build complete message history including conversation context
     const systemPrompt = `당신은 완도고등학교 Pure Ocean 학생들을 위한 프로젝트 도우미입니다.
     
 주어진 컨텍스트를 바탕으로 학생들의 질문에 친절하고 구체적으로 답변해주세요.
@@ -78,14 +80,22 @@ ${context}
 2. 학생 수준에 맞게 쉽게 설명하세요
 3. 구체적인 예시를 들어주세요
 4. 긍정적이고 격려하는 톤을 유지하세요
-5. 컨텍스트에 없는 정보는 일반적인 지식을 바탕으로 답변하되, 추측임을 명시하세요`;
+5. 컨텍스트에 없는 정보는 일반적인 지식을 바탕으로 답변하되, 추측임을 명시하세요
+6. 이전 대화 내용을 고려하여 연속성 있는 답변을 제공하세요`;
+
+    // Include conversation history for context continuity
+    const messages = [
+      { role: "system", content: systemPrompt },
+      ...conversation.messages.map((msg: any) => ({
+        role: msg.role.toLowerCase() as 'user' | 'assistant',
+        content: msg.content
+      })),
+      { role: "user", content: message }
+    ];
 
     const completion = await openai.chat.completions.create({
       model: DEFAULT_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: message }
-      ],
+      messages,
       temperature: 0.7,
       max_tokens: 1000,
     });

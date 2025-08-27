@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
       model: DEFAULT_MODEL,
       messages,
       temperature: 0.7,
-      max_tokens: 150,
+      max_tokens: 1000, // Increased for more complete responses
     });
 
     const assistantMessage = completion.choices[0].message.content || '';

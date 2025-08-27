@@ -333,8 +333,7 @@ function ChatInterfaceContent() {
                 <button
                   onClick={() => {
                     setChatMode('grow');
-                    setMessages([]);
-                    setConversationId(null);
+                    // Keep existing conversation context when switching modes
                   }}
                   className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
                     chatMode === 'grow'
@@ -348,8 +347,7 @@ function ChatInterfaceContent() {
                 <button
                   onClick={() => {
                     setChatMode('assistant');
-                    setMessages([]);
-                    setConversationId(null);
+                    // Keep existing conversation context when switching modes
                   }}
                   className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
                     chatMode === 'assistant'
@@ -363,8 +361,7 @@ function ChatInterfaceContent() {
                 <button
                   onClick={() => {
                     setChatMode('docs');
-                    setMessages([]);
-                    setConversationId(null);
+                    // Keep existing conversation context when switching modes
                   }}
                   className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
                     chatMode === 'docs'
