@@ -51,3 +51,4 @@ deployment-secrets.md
 # secrets files
 secrets.toml
 *.toml
+.env.docker
