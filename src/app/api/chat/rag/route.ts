@@ -84,7 +84,7 @@ ${context}
 6. 이전 대화 내용을 고려하여 연속성 있는 답변을 제공하세요`;
 
     // Include conversation history for context continuity
-    const messages = [
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
       { role: "system", content: systemPrompt },
       ...conversation.messages.map((msg: { role: string; content: string }) => ({
         role: msg.role.toLowerCase() as 'user' | 'assistant',
