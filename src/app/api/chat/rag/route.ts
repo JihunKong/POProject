@@ -86,7 +86,7 @@ ${context}
     // Include conversation history for context continuity
     const messages = [
       { role: "system", content: systemPrompt },
-      ...conversation.messages.map((msg: any) => ({
+      ...conversation.messages.map((msg: { role: string; content: string }) => ({
         role: msg.role.toLowerCase() as 'user' | 'assistant',
         content: msg.content
       })),
