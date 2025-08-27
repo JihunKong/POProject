@@ -5,6 +5,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     
     const debugInfo = {
+      timestamp: new Date().toISOString(),
       requestUrl: url.href,
       hostname: url.hostname,
       protocol: url.protocol,
@@ -12,18 +13,51 @@ export async function GET(request: Request) {
       env: {
         NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'NOT SET',
         NODE_ENV: process.env.NODE_ENV || 'NOT SET',
-        GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET',
-        GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET',
-        NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ? 'SET' : 'NOT SET',
+        GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? `SET (${process.env.GOOGLE_CLIENT_ID?.substring(0, 10)}...)` : 'NOT SET',
+        GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ? 'SET (hidden)' : 'NOT SET',
+        NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ? `SET (${process.env.NEXTAUTH_SECRET.length} chars)` : 'NOT SET',
       },
       headers: {
         host: request.headers.get('host'),
         referer: request.headers.get('referer'),
+        'user-agent': request.headers.get('user-agent')?.substring(0, 50) + '...',
+        'x-forwarded-proto': request.headers.get('x-forwarded-proto'),
+        'x-forwarded-for': request.headers.get('x-forwarded-for'),
+        'accept': request.headers.get('accept'),
+      },
+      nextAuthTest: {
+        message: 'Testing NextAuth availability',
+        tryImport: 'Attempting to import auth...'
       }
     };
 
-    return NextResponse.json(debugInfo, { status: 200 });
-  } catch (error) {
-    return NextResponse.json({ error: 'Debug endpoint error', details: String(error) }, { status: 500 });
+    // Try to import and test NextAuth
+    try {
+      const { auth } = await import('@/lib/auth');
+      debugInfo.nextAuthTest = {
+        message: 'NextAuth import successful',
+        authFunction: 'Available',
+        configurationStatus: 'Loaded'
+      };
+    } catch (authError: any) {
+      debugInfo.nextAuthTest = {
+        message: 'NextAuth import failed',
+        error: authError?.message || 'Unknown auth error',
+        configurationStatus: 'Failed'
+      };
+    }
+
+    return NextResponse.json(debugInfo, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      }
+    });
+  } catch (error: any) {
+    return NextResponse.json({ 
+      error: 'Debug endpoint error', 
+      message: error?.message || 'Unknown error',
+      stack: error?.stack?.substring(0, 500)
+    }, { status: 500 });
   }
 }
