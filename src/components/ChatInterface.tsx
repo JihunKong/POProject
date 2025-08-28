@@ -666,24 +666,33 @@ function ChatInterfaceContent() {
   const [docUrl, setDocUrl] = useState('');
   const [docGenre, setDocGenre] = useState('워크시트');
   
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  // 탭별 독립적인 ref 시스템으로 DOM 충돌 방지
+  const messagesContainerRefs = useRef<Record<ChatMode, HTMLDivElement | null>>({
+    grow: null,
+    assistant: null,
+    docs: null
+  });
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const scrollToBottom = useCallback((force = false) => {
+  // 현재 탭별 독립적 스크롤 - DOM 참조 충돌 완전 방지
+  const scrollToBottom = useCallback((force = false, targetMode?: ChatMode) => {
+    const mode = targetMode || chatMode;
     if (!isUserScrolling || force) {
-      // 단순하고 안전한 스크롤: 컨테이너만 사용
-      if (messagesContainerRef.current) {
-        setTimeout(() => {
-          if (messagesContainerRef.current) {
-            messagesContainerRef.current.scrollTo({
-              top: messagesContainerRef.current.scrollHeight,
+      const container = messagesContainerRefs.current[mode];
+      if (container) {
+        // 즉시 실행으로 타이밍 이슈 제거
+        requestAnimationFrame(() => {
+          // 한 번 더 검증하여 탭 전환 시 잘못된 참조 방지
+          if (messagesContainerRefs.current[mode] === container) {
+            container.scrollTo({
+              top: container.scrollHeight,
               behavior: 'smooth'
             });
           }
-        }, 100); // DOM 업데이트 후 스크롤
+        });
       }
     }
-  }, [isUserScrolling]);
+  }, [isUserScrolling, chatMode]);
 
   // Auto scroll only when new messages arrive and user is not scrolling
   useEffect(() => {
@@ -693,20 +702,27 @@ function ChatInterfaceContent() {
     }
   }, [currentMessages.length, scrollToBottom]);
 
-  // Detect user scrolling
+  // 현재 탭별 독립적 스크롤 감지 - 탭 전환 시 이벤트 리스너 충돌 방지
   useEffect(() => {
-    const container = messagesContainerRef.current;
+    const container = messagesContainerRefs.current[chatMode];
     if (!container) return;
 
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
-      setIsUserScrolling(!isAtBottom);
+      // 현재 활성 탭의 컨테이너인지 재검증
+      if (messagesContainerRefs.current[chatMode] === container) {
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+        setIsUserScrolling(!isAtBottom);
+      }
     };
 
     container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      // 탭 전환 시 스크롤 상태 초기화
+      setIsUserScrolling(false);
+    };
+  }, [chatMode]); // chatMode 변경 시마다 새로운 리스너 등록
 
   // Auto-resize textarea
   useEffect(() => {
@@ -809,8 +825,8 @@ function ChatInterfaceContent() {
         }]
       });
       refetchConversations();
-      // Scroll to bottom when assistant responds
-      setTimeout(() => scrollToBottom(true), 100);
+      // 응답 완료 후 현재 탭에만 스크롤 적용
+      scrollToBottom(true, chatMode);
     },
     onError: (error: Error) => {
       console.error('메시지 전송 오류:', error);
@@ -832,8 +848,8 @@ function ChatInterfaceContent() {
     updateCurrentTabState({ messages: [...currentMessages, userMessage] });
     setInput('');
     sendMessage.mutate(input);
-    // Force scroll to bottom when user sends a message
-    setTimeout(() => scrollToBottom(true), 100);
+    // 메시지 전송 후 현재 탭에만 스크롤 적용
+    scrollToBottom(true, chatMode);
   };
 
   const startNewConversation = () => {
@@ -856,8 +872,8 @@ function ChatInterfaceContent() {
       
       updateCurrentTabState({ messages: [...currentMessages, userMessage] });
       sendMessage.mutate(suggestion);
-      // Force scroll to bottom when user sends a message
-      setTimeout(() => scrollToBottom(true), 100);
+      // 제안 클릭 후 현재 탭에만 스크롤 적용
+      scrollToBottom(true, chatMode);
     } else {
       // 다른 모드에서는 기존 방식대로 input에 설정
       setInput(suggestion);
@@ -1053,7 +1069,7 @@ function ChatInterfaceContent() {
         </div>
 
         {/* Messages Area */}
-        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto flex">
+        <div ref={(el) => messagesContainerRefs.current[chatMode] = el} className="flex-1 overflow-y-auto flex">
           <div className="w-full max-w-5xl mx-auto p-4 md:p-6">
             {isLoadingMessages ? (
               <div className="flex justify-center items-center h-full">
