@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,33 +12,204 @@ import { Lightbulb, Waves, Target, Bot, User, Plus, Send, Info, Menu, X, Clock, 
 
 const queryClient = new QueryClient();
 
-type ChatMode = 'assistant' | 'docs';
-type AssistantMode = 'general' | 'coaching';
+type ChatMode = 'grow' | 'assistant' | 'docs';
 
 interface ChatState {
   messages: Message[];
   conversationId: string | null;
 }
 
-
-// 2탭 구조로 변경: 프로젝트 도우미 (코칭 모드 포함), 문서 첨삭
-
-function AssistantTab({ 
+// 각 탭별 독립적인 컴포너트
+function GrowTab({ 
   messages, 
   isLoading, 
-  onSuggestionClick,
-  mode,
-  setMode,
-  streamingMessage,
-  isStreaming
+  onSuggestionClick
 }: {
   messages: Message[];
   isLoading: boolean;
   onSuggestionClick: (suggestion: string) => void;
-  mode: AssistantMode;
-  setMode: (mode: AssistantMode) => void;
-  streamingMessage?: string;
-  isStreaming?: boolean;
+}) {
+  if (messages.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center w-full max-w-4xl px-4">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center shadow-xl">
+            <Target className="w-10 h-10 text-white" />
+          </div>
+          <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">
+            안녕하세요! 여러분, 무엇을 도와드릴까요?
+          </h3>
+          <p className="text-gray-600 mb-8 text-lg">
+            여러분의 아이디어를 단계별로 발전시켜 드릴게요
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 justify-center">
+            <button
+              onClick={() => onSuggestionClick("우리 지역 해양 문제를 조사하고 싶어요")}
+              className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-blue-200"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                  <Target className="w-6 h-6 text-blue-600" />
+                </div>
+                <h4 className="font-bold text-gray-800">목표 설정</h4>
+              </div>
+              <p className="text-sm text-gray-600">우리 지역 해양 문제를 조사하고 싶어요</p>
+            </button>
+
+            <button
+              onClick={() => onSuggestionClick("해양 플라스틱 문제를 해결하는 프로젝트를 하고 싶어요")}
+              className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-green-200"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                  <Lightbulb className="w-6 h-6 text-green-600" />
+                </div>
+                <h4 className="font-bold text-gray-800">아이디어 탐색</h4>
+              </div>
+              <p className="text-sm text-gray-600">해양 플라스틱 문제를 해결하는 프로젝트를 하고 싶어요</p>
+            </button>
+
+            <button
+              onClick={() => onSuggestionClick("팀원들과 역할 분담을 어떻게 하면 좋을까요?")}
+              className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-purple-200"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                  <User className="w-6 h-6 text-purple-600" />
+                </div>
+                <h4 className="font-bold text-gray-800">팀 협업</h4>
+              </div>
+              <p className="text-sm text-gray-600">팀원들과 역할 분담을 어떻게 하면 좋을까요?</p>
+            </button>
+          </div>
+
+          <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
+            <Info className="w-4 h-4 inline mr-2" />
+            GROW 모델(목표-현실-대안-실행)을 기반으로 한 단계씩 질문드릴게요
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {messages.map((message, index) => (
+        <div
+          key={`grow-${index}`}
+          className={`flex gap-3 ${
+            message.role === 'user' ? 'justify-end' : 'justify-start'
+          }`}
+        >
+          {message.role === 'assistant' && (
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+                <Bot className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          )}
+          
+          <div className={`max-w-2xl ${message.role === 'user' ? 'order-1' : 'order-2'}`}>
+            <div className={`rounded-2xl px-6 py-4 shadow-sm ${
+              message.role === 'user'
+                ? 'bg-blue-500 text-white'
+                : 'bg-white border border-gray-200'
+            }`}>
+              <div className={`whitespace-pre-wrap ${
+                message.role === 'user' ? 'text-white' : 'text-gray-800'
+              }`}>
+                {message.role === 'assistant' ? (
+                  <div className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2">
+                    <ReactMarkdown
+                      components={{
+                        a: ({ ...props }) => (
+                          <a 
+                            {...props} 
+                            className={`underline hover:no-underline ${
+                              message.role === 'user' 
+                                ? 'text-blue-100 hover:text-white' 
+                                : 'text-blue-600 hover:text-blue-800'
+                            }`}
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                          />
+                        ),
+                        strong: ({ ...props }) => (
+                          <strong {...props} className="font-bold" />
+                        ),
+                        p: ({ ...props }) => (
+                          <p {...props} className="mb-2 last:mb-0" />
+                        ),
+                        ul: ({ ...props }) => (
+                          <ul {...props} className="list-disc list-inside mb-2" />
+                        ),
+                        ol: ({ ...props }) => (
+                          <ol {...props} className="list-decimal list-inside mb-2" />
+                        ),
+                        li: ({ ...props }) => (
+                          <li {...props} className="mb-1" />
+                        )
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  message.content
+                )}
+              </div>
+              {message.timestamp && (
+                <div className={`text-xs mt-2 ${
+                  message.role === 'user' ? 'text-blue-100' : 'text-gray-400'
+                }`}>
+                  {message.timestamp.toLocaleTimeString('ko-KR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {message.role === 'user' && (
+            <div className="flex-shrink-0 order-2">
+              <div className="w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center">
+                <User className="w-6 h-6 text-gray-600" />
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {isLoading && (
+        <div className="flex gap-3">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+              <Bot className="w-6 h-6 text-white" />
+            </div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl px-6 py-4 shadow-sm">
+            <div className="loading-wave text-gray-400">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AssistantTab({ 
+  messages, 
+  isLoading, 
+  onSuggestionClick
+}: {
+  messages: Message[];
+  isLoading: boolean;
+  onSuggestionClick: (suggestion: string) => void;
 }) {
   if (messages.length === 0) {
     return (
@@ -50,132 +222,54 @@ function AssistantTab({
             프로젝트 도우미입니다. 무엇이든 물어보세요!
           </h3>
           <p className="text-gray-600 mb-8 text-lg">
-            {mode === 'coaching' ? 'GROW 모델 기반 학습 코칭을 도와드립니다' : '프로젝트 관련 모든 질문에 답해드립니다'}
+            프로젝트 관련 모든 질문에 답해드립니다
           </p>
           
-          {/* 모드 선택 토글 */}
-          <div className="flex justify-center mb-8">
-            <div className="bg-gray-100 rounded-xl p-1">
-              <button
-                onClick={() => setMode('general')}
-                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                  mode === 'general' 
-                    ? 'bg-blue-500 text-white shadow-md' 
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                일반 도움
-              </button>
-              <button
-                onClick={() => setMode('coaching')}
-                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                  mode === 'coaching' 
-                    ? 'bg-blue-500 text-white shadow-md' 
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                GROW 코칭
-              </button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 justify-center">
+            <button
+              onClick={() => onSuggestionClick("설문조사 항목을 만들어주세요")}
+              className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-blue-200"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                  <MessageSquare className="w-6 h-6 text-blue-600" />
+                </div>
+                <h4 className="font-bold text-gray-800">설문 도움</h4>
+              </div>
+              <p className="text-sm text-gray-600">설문조사 항목을 만들어주세요</p>
+            </button>
+
+            <button
+              onClick={() => onSuggestionClick("SDGs와 연결된 프로젝트 아이디어를 제안해주세요")}
+              className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-green-200"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                  <Lightbulb className="w-6 h-6 text-green-600" />
+                </div>
+                <h4 className="font-bold text-gray-800">SDGs 연계</h4>
+              </div>
+              <p className="text-sm text-gray-600">SDGs와 연결된 프로젝트 아이디어를 제안해주세요</p>
+            </button>
+
+            <button
+              onClick={() => onSuggestionClick("프로젝트 일정표를 만들어주세요")}
+              className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-purple-200"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                  <Clock className="w-6 h-6 text-purple-600" />
+                </div>
+                <h4 className="font-bold text-gray-800">일정 계획</h4>
+              </div>
+              <p className="text-sm text-gray-600">프로젝트 일정표를 만들어주세요</p>
+            </button>
           </div>
-          
-          {mode === 'general' ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 justify-center">
-                <button
-                  onClick={() => onSuggestionClick("설문조사 항목을 만들어주세요")}
-                  className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-blue-200"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                      <MessageSquare className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <h4 className="font-bold text-gray-800">설문 도움</h4>
-                  </div>
-                  <p className="text-sm text-gray-600">설문조사 항목을 만들어주세요</p>
-                </button>
 
-                <button
-                  onClick={() => onSuggestionClick("SDGs와 연결된 프로젝트 아이디어를 제안해주세요")}
-                  className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-green-200"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                      <Lightbulb className="w-6 h-6 text-green-600" />
-                    </div>
-                    <h4 className="font-bold text-gray-800">SDGs 연계</h4>
-                  </div>
-                  <p className="text-sm text-gray-600">SDGs와 연결된 프로젝트 아이디어를 제안해주세요</p>
-                </button>
-
-                <button
-                  onClick={() => onSuggestionClick("프로젝트 일정표를 만들어주세요")}
-                  className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-purple-200"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                      <Clock className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <h4 className="font-bold text-gray-800">일정 계획</h4>
-                  </div>
-                  <p className="text-sm text-gray-600">프로젝트 일정표를 만들어주세요</p>
-                </button>
-              </div>
-
-              <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
-                <Info className="w-4 h-4 inline mr-2" />
-                Pure Ocean 프로젝트 자료를 기반으로 답변해드립니다
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 justify-center">
-                <button
-                  onClick={() => onSuggestionClick("우리 지역 해양 문제를 조사하고 싶어요")}
-                  className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-blue-200"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                      <Target className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <h4 className="font-bold text-gray-800">목표 설정</h4>
-                  </div>
-                  <p className="text-sm text-gray-600">우리 지역 해양 문제를 조사하고 싶어요</p>
-                </button>
-
-                <button
-                  onClick={() => onSuggestionClick("해양 플라스틱 문제를 해결하는 프로젝트를 하고 싶어요")}
-                  className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-green-200"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                      <Lightbulb className="w-6 h-6 text-green-600" />
-                    </div>
-                    <h4 className="font-bold text-gray-800">아이디어 탐색</h4>
-                  </div>
-                  <p className="text-sm text-gray-600">해양 플라스틱 문제를 해결하는 프로젝트를 하고 싶어요</p>
-                </button>
-
-                <button
-                  onClick={() => onSuggestionClick("팀원들과 역할 분담을 어떻게 하면 좋을까요?")}
-                  className="group bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 text-left border-2 border-transparent hover:border-purple-200"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                      <User className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <h4 className="font-bold text-gray-800">팀 협업</h4>
-                  </div>
-                  <p className="text-sm text-gray-600">팀원들과 역할 분담을 어떻게 하면 좋을까요?</p>
-                </button>
-              </div>
-
-              <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
-                <Info className="w-4 h-4 inline mr-2" />
-                GROW 모델(목표-현실-대안-실행)을 기반으로 한 단계씩 질문드릴게요
-              </div>
-            </>
-          )}
+          <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
+            <Info className="w-4 h-4 inline mr-2" />
+            Pure Ocean 프로젝트 자료를 기반으로 답변해드립니다
+          </div>
         </div>
       </div>
     );
@@ -286,61 +380,68 @@ function AssistantTab({
           </div>
         </div>
       )}
-
-      {/* 스트리밍 메시지 표시 */}
-      {isStreaming && streamingMessage && (
-        <div className="flex gap-3">
-          <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
-              <Bot className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          <div className="max-w-2xl">
-            <div className="rounded-2xl px-6 py-4 shadow-sm bg-white border border-gray-200">
-              <div className="whitespace-pre-wrap text-gray-800">
-                <div className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2">
-                  <ReactMarkdown
-                    components={{
-                      a: ({ ...props }) => (
-                        <a 
-                          {...props} 
-                          className="underline hover:no-underline text-blue-600 hover:text-blue-800"
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                        />
-                      ),
-                      strong: ({ ...props }) => (
-                        <strong {...props} className="font-bold" />
-                      ),
-                      p: ({ ...props }) => (
-                        <p {...props} className="mb-2 last:mb-0" />
-                      ),
-                      ul: ({ ...props }) => (
-                        <ul {...props} className="list-disc list-inside mb-2" />
-                      ),
-                      ol: ({ ...props }) => (
-                        <ol {...props} className="list-decimal list-inside mb-2" />
-                      ),
-                      li: ({ ...props }) => (
-                        <li {...props} className="mb-1" />
-                      )
-                    }}
-                  >
-                    {streamingMessage}
-                  </ReactMarkdown>
-                  {/* 타이핑 인디케이터 */}
-                  <span className="inline-block w-2 h-5 bg-gray-400 ml-1 animate-pulse"></span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 // 단일 컴포넌트로 모든 탭 렌더링 처리 - 내부 조건부 렌더링으로 탭 전환
+function TabRenderer({
+  chatMode,
+  messages,
+  isLoading,
+  onSuggestionClick,
+  docUrl,
+  setDocUrl,
+  docGenre,
+  setDocGenre
+}: {
+  chatMode: ChatMode;
+  messages: Message[];
+  isLoading: boolean;
+  onSuggestionClick: (suggestion: string) => void;
+  docUrl: string;
+  setDocUrl: (url: string) => void;
+  docGenre: string;
+  setDocGenre: (genre: string) => void;
+}) {
+  // chatMode 변경 감지 및 강제 리렌더링 보장
+  useEffect(() => {
+    console.log(`🔄 TabRenderer: chatMode changed to ${chatMode}, messages count: ${messages.length}`);
+    console.log(`🎯 TabRenderer rendering - Mode: ${chatMode}, Messages: ${messages.length}, Loading: ${isLoading}`);
+  }, [chatMode, messages.length, isLoading]);
+
+  // chatMode에 따라 완전히 다른 컴포넌트 렌더링
+  if (chatMode === 'grow') {
+    return (
+      <GrowTab
+        messages={messages}
+        isLoading={isLoading}
+        onSuggestionClick={onSuggestionClick}
+      />
+    );
+  } else if (chatMode === 'assistant') {
+    return (
+      <AssistantTab
+        messages={messages}
+        isLoading={isLoading}
+        onSuggestionClick={onSuggestionClick}
+      />
+    );
+  } else if (chatMode === 'docs') {
+    return (
+      <DocsTab
+        messages={messages}
+        isLoading={isLoading}
+        onSuggestionClick={onSuggestionClick}
+        docUrl={docUrl}
+        setDocUrl={setDocUrl}
+        docGenre={docGenre}
+        setDocGenre={setDocGenre}
+      />
+    );
+  }
+  return null;
+}
 
 function DocsTab({ 
   messages, 
@@ -546,14 +647,12 @@ function ChatInterfaceContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   
-  // 2탭 구조 상태 관리 (코칭은 서브모드로)
+  // 각 탭별 독립적인 상태 관리
   const [chatStates, setChatStates] = useState<Record<ChatMode, ChatState>>({
+    grow: { messages: [], conversationId: null },
     assistant: { messages: [], conversationId: null },
     docs: { messages: [], conversationId: null }
   });
-  
-  // 프로젝트 도우미의 서브모드 (일반/코칭)
-  const [assistantMode, setAssistantMode] = useState<AssistantMode>('general');
   
   // 탭 전환 강제 리렌더링을 위한 상태 (중복 제거됨)
   
@@ -563,51 +662,35 @@ function ChatInterfaceContent() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   
-  // 스트리밍 관련 상태
-  const [streamingMessage, setStreamingMessage] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
-  
   // URL 파라미터에서 초기 chatMode 설정
-  const initialChatMode = searchParams.get('mode') as ChatMode || 'assistant';
+  const initialChatMode = searchParams.get('mode') as ChatMode || 'grow';
   const [chatMode, setChatMode] = useState<ChatMode>(initialChatMode);
   
+  // 강제 리렌더링을 위한 카운터 (전문가 회의 결과)
+  const [forceRender, setForceRender] = useState(0); // 강제 리렌더링을 위한 카운터
   
   // 직접 상태 접근 (useMemo 제거하여 캐싱 이슈 방지)
   const currentMessages = chatStates[chatMode].messages;
   const currentConversationId = chatStates[chatMode].conversationId;
   
-  console.log(`🔄 Tab: ${chatMode}, Messages count: ${currentMessages.length}, ConversationId: ${currentConversationId}`);
+  console.log(`🔄 Tab: ${chatMode}, Messages count: ${currentMessages.length}, ConversationId: ${currentConversationId}, ForceRender: ${forceRender}`);
   
   // React StrictMode 호환성을 위한 탭 전환 감지
   useEffect(() => {
-    console.log(`🔄 ChatMode changed to: ${chatMode}`);
-  }, [chatMode]);
+    console.log(`🔄 ChatMode changed to: ${chatMode}, ForceRender: ${forceRender}`);
+  }, [chatMode, forceRender]);
 
   // 동기적 UI 업데이트 보장
   useLayoutEffect(() => {
     console.log(`🔧 Layout effect - ensuring DOM update for ${chatMode}`);
   }, [chatMode]);
   
-  // 코칭 모드 전환 시 메시지 초기화 (stateless 구현)
-  useEffect(() => {
-    if (chatMode === 'assistant' && assistantMode === 'coaching') {
-      // 코칭 모드로 전환하면 이전 대화 초기화
-      setChatStates(prev => ({
-        ...prev,
-        [chatMode]: { 
-          messages: [], 
-          conversationId: null 
-        }
-      }));
-      console.log('🧹 Coaching mode activated: messages cleared (stateless)');
-    }
-  }, [assistantMode, chatMode]);
-  
   const [docUrl, setDocUrl] = useState('');
   const [docGenre, setDocGenre] = useState('워크시트');
   
   // 탭별 독립적인 ref 시스템으로 DOM 충돌 방지
   const messagesContainerRefs = useRef<Record<ChatMode, HTMLDivElement | null>>({
+    grow: null,
     assistant: null,
     docs: null
   });
@@ -680,13 +763,13 @@ function ChatInterfaceContent() {
     }
   }, [input]);
 
-  // 현재 탭의 상태 업데이트 헬퍼 함수 (useCallback으로 안정화)
-  const updateCurrentTabState = useCallback((updates: Partial<ChatState>) => {
+  // 현재 탭의 상태 업데이트 헬퍼 함수
+  const updateCurrentTabState = (updates: Partial<ChatState>) => {
     setChatStates(prev => ({
       ...prev,
       [chatMode]: { ...prev[chatMode], ...updates }
     }));
-  }, [chatMode]);
+  };
 
   // Load conversation messages
   const loadConversation = async (convId: string) => {
@@ -724,121 +807,6 @@ function ChatInterfaceContent() {
     enabled: !!session,
   });
 
-  // 스트리밍 메시지 처리 함수
-  const handleStreamingMessage = async (message: string) => {
-    console.log('🚀 Starting streaming message:', { message, chatMode, assistantMode });
-    setIsStreaming(true);
-    setStreamingMessage('');
-
-    // 사용자 메시지를 먼저 화면에 표시
-    const userMessage: Message = {
-      role: 'user',
-      content: message,
-      timestamp: new Date(),
-    };
-    updateCurrentTabState({ messages: [...currentMessages, userMessage] });
-    scrollToBottom(true, chatMode);
-
-    let endpoint = '/api/chat/stream';
-    let payload: Record<string, unknown> = {
-      conversationId: currentConversationId,
-      message,
-      assistantMode,
-    };
-    
-    if (chatMode === 'assistant') {
-      if (assistantMode === 'coaching') {
-        endpoint = '/api/chat/stream';
-        payload = {
-          conversationId: null,
-          message,
-          assistantMode: 'coaching',
-        };
-      } else {
-        endpoint = '/api/chat/rag/stream';
-      }
-    }
-
-    try {
-      console.log('📡 Making streaming request to:', endpoint, payload);
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      console.log('📡 Response status:', response.status, response.ok);
-      if (!response.ok) {
-        throw new Error(`Stream request failed: ${response.status} ${response.statusText}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response body');
-      }
-
-      const decoder = new TextDecoder();
-      let currentMessage = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              
-              if (data.type === 'chunk') {
-                currentMessage += data.content;
-                console.log('📝 Streaming chunk received:', data.content);
-                setStreamingMessage(currentMessage);
-                // 스트리밍 중 스크롤
-                scrollToBottom(true, chatMode);
-              } else if (data.type === 'complete') {
-                console.log('✅ Streaming complete:', data.fullMessage);
-                // 스트리밍 완료 - 최종 메시지 저장
-                const assistantMessage: Message = {
-                  role: 'assistant',
-                  content: data.fullMessage,
-                  timestamp: new Date(),
-                };
-                
-                updateCurrentTabState({
-                  conversationId: (chatMode === 'assistant' && assistantMode === 'coaching') ? null : data.conversationId,
-                  messages: [...currentMessages, userMessage, assistantMessage]
-                });
-                
-                // 코칭 모드가 아닐 때만 대화 히스토리 갱신
-                if (!(chatMode === 'assistant' && assistantMode === 'coaching')) {
-                  refetchConversations();
-                }
-                
-                setStreamingMessage('');
-                setIsStreaming(false);
-                return;
-              } else if (data.type === 'error') {
-                throw new Error(data.error);
-              }
-            } catch (parseError) {
-              console.warn('Failed to parse SSE data:', parseError);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Streaming error:', error);
-      setIsStreaming(false);
-      setStreamingMessage('');
-      alert(error instanceof Error ? error.message : '스트리밍 중 오류가 발생했습니다.');
-    }
-  };
-
   const sendMessage = useMutation({
     mutationFn: async (message: string) => {
       let endpoint = '/api/chat';
@@ -848,17 +816,7 @@ function ChatInterfaceContent() {
       };
       
       if (chatMode === 'assistant') {
-        if (assistantMode === 'coaching') {
-          // 코칭 모드: stateless, 대화 기억하지 않음
-          endpoint = '/api/chat';
-          payload = {
-            conversationId: null, // 새 세션으로 시작
-            message,
-          };
-        } else {
-          // 일반 모드: 기존 RAG 시스템 사용
-          endpoint = '/api/chat/rag';
-        }
+        endpoint = '/api/chat/rag';
       } else if (chatMode === 'docs') {
         endpoint = '/api/docs/feedback';
         // Parse doc URL and genre from message
@@ -890,19 +848,14 @@ function ChatInterfaceContent() {
     },
     onSuccess: (data) => {
       updateCurrentTabState({
-        // 코칭 모드일 때는 conversationId를 저장하지 않음 (stateless)
-        conversationId: (chatMode === 'assistant' && assistantMode === 'coaching') ? null : data.conversationId,
+        conversationId: data.conversationId,
         messages: [...currentMessages, {
           role: 'assistant',
           content: data.message,
           timestamp: new Date(),
         }]
       });
-      
-      // 코칭 모드가 아닐 때만 대화 히스토리 갱신
-      if (!(chatMode === 'assistant' && assistantMode === 'coaching')) {
-        refetchConversations();
-      }
+      refetchConversations();
       // 응답 완료 후 현재 탭에만 스크롤 적용
       scrollToBottom(true, chatMode);
     },
@@ -915,13 +868,19 @@ function ChatInterfaceContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isStreaming) return;
+    if (!input.trim() || sendMessage.isPending) return;
 
-    const messageToSend = input;
+    const userMessage: Message = {
+      role: 'user',
+      content: input,
+      timestamp: new Date(),
+    };
+
+    updateCurrentTabState({ messages: [...currentMessages, userMessage] });
     setInput('');
-    
-    // 스트리밍 메시지 처리
-    await handleStreamingMessage(messageToSend);
+    sendMessage.mutate(input);
+    // 메시지 전송 후 현재 탭에만 스크롤 적용
+    scrollToBottom(true, chatMode);
   };
 
   const startNewConversation = () => {
@@ -933,9 +892,9 @@ function ChatInterfaceContent() {
     setShowMobileMenu(false);
   };
 
-  const handleSuggestionClick = async (suggestion: string) => {
+  const handleSuggestionClick = (suggestion: string) => {
     if (chatMode === 'docs') {
-      // 문서 첨삭 모드에서는 기존 방식 사용 (스트리밍 없이)
+      // 문서 첨삭 모드에서는 바로 메시지 전송
       const userMessage: Message = {
         role: 'user',
         content: suggestion,
@@ -944,10 +903,12 @@ function ChatInterfaceContent() {
       
       updateCurrentTabState({ messages: [...currentMessages, userMessage] });
       sendMessage.mutate(suggestion);
+      // 제안 클릭 후 현재 탭에만 스크롤 적용
       scrollToBottom(true, chatMode);
     } else {
-      // 다른 모드에서는 스트리밍으로 바로 전송
-      await handleStreamingMessage(suggestion);
+      // 다른 모드에서는 기존 방식대로 input에 설정
+      setInput(suggestion);
+      inputRef.current?.focus();
     }
   };
 
@@ -1055,7 +1016,7 @@ function ChatInterfaceContent() {
         {/* 디버깅 정보 (개발 환경에서만 표시) */}
         {process.env.NODE_ENV === 'development' && (
           <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-2 text-xs">
-            <strong>Debug:</strong> Mode={chatMode}, Messages={currentMessages.length}
+            <strong>Debug:</strong> Mode={chatMode}, Messages={currentMessages.length}, Render={forceRender}
           </div>
         )}
 
@@ -1081,7 +1042,8 @@ function ChatInterfaceContent() {
                   <div>
                     <h2 className="text-lg md:text-xl font-bold text-gray-800">Pure Ocean AI 코치</h2>
                     <p className="text-xs md:text-sm text-gray-600">
-                      {chatMode === 'assistant' && (assistantMode === 'coaching' ? 'GROW 모델 기반 학습 코칭' : '프로젝트 도우미')}
+                      {chatMode === 'grow' && 'GROW 모델 기반 학습 코칭'}
+                      {chatMode === 'assistant' && '프로젝트 도우미'}
                       {chatMode === 'docs' && '문서 첨삭 도우미'}
                     </p>
                   </div>
@@ -1095,7 +1057,42 @@ function ChatInterfaceContent() {
             <div className="max-w-6xl mx-auto px-4 md:px-6">
               <div className="flex space-x-1">
                 <button
-                  onClick={() => setChatMode('assistant')}
+                  onClick={() => {
+                    console.log('🚀 Switching to GROW tab - DOM will be completely rebuilt');
+                    // 단계별 DOM 완전 교체 보장
+                    flushSync(() => {
+                      setChatMode('grow');
+                      setForceRender(prev => prev + 1); // 강제 리렌더링
+                    });
+                    // 추가 보험: 다음 프레임에서 한 번 더 강제 업데이트 
+                    setTimeout(() => {
+                      setForceRender(prev => prev + 1);
+                    }, 0);
+                    console.log('🔄 GROW tab switch completed');
+                  }}
+                  className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
+                    chatMode === 'grow'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <Target className="w-4 h-4" />
+                  GROW 코칭
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('🚀 Switching to ASSISTANT tab - DOM will be completely rebuilt');
+                    // 단계별 DOM 완전 교체 보장
+                    flushSync(() => {
+                      setChatMode('assistant');
+                      setForceRender(prev => prev + 1); // 강제 리렌더링
+                    });
+                    // 추가 보험: 다음 프레임에서 한 번 더 강제 업데이트 
+                    setTimeout(() => {
+                      setForceRender(prev => prev + 1);
+                    }, 0);
+                    console.log('🔄 ASSISTANT tab switch completed');
+                  }}
                   className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
                     chatMode === 'assistant'
                       ? 'text-blue-600 border-b-2 border-blue-600'
@@ -1106,7 +1103,19 @@ function ChatInterfaceContent() {
                   프로젝트 도우미
                 </button>
                 <button
-                  onClick={() => setChatMode('docs')}
+                  onClick={() => {
+                    console.log('🚀 Switching to DOCS tab - DOM will be completely rebuilt');
+                    // 단계별 DOM 완전 교체 보장
+                    flushSync(() => {
+                      setChatMode('docs');
+                      setForceRender(prev => prev + 1); // 강제 리렌더링
+                    });
+                    // 추가 보험: 다음 프레임에서 한 번 더 강제 업데이트 
+                    setTimeout(() => {
+                      setForceRender(prev => prev + 1);
+                    }, 0);
+                    console.log('🔄 DOCS tab switch completed');
+                  }}
                   className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
                     chatMode === 'docs'
                       ? 'text-blue-600 border-b-2 border-blue-600'
@@ -1145,7 +1154,7 @@ function ChatInterfaceContent() {
             ) : (
               // 강제 DOM 교체를 위한 독립 컨테이너 (조건부 렌더링 대신 확실한 리마운트)
               <TabContainer
-                key={`${chatMode}-${Date.now()}`} // 타임스탬프로 고유 키 보장
+                key={`${chatMode}-${forceRender}-${Date.now()}`} // 타임스탬프로 100% 고유 키 보장
                 chatMode={chatMode}
                 messages={currentMessages}
                 isLoading={sendMessage.isPending}
@@ -1154,10 +1163,6 @@ function ChatInterfaceContent() {
                 setDocUrl={setDocUrl}
                 docGenre={docGenre}
                 setDocGenre={setDocGenre}
-                assistantMode={assistantMode}
-                setAssistantMode={setAssistantMode}
-                streamingMessage={streamingMessage}
-                isStreaming={isStreaming}
               />
             )}
           </div>
@@ -1216,11 +1221,7 @@ function TabContainer({
   docUrl,
   setDocUrl,
   docGenre,
-  setDocGenre,
-  assistantMode,
-  setAssistantMode,
-  streamingMessage,
-  isStreaming
+  setDocGenre
 }: {
   chatMode: ChatMode;
   messages: Message[];
@@ -1230,10 +1231,6 @@ function TabContainer({
   setDocUrl: (url: string) => void;
   docGenre: string;
   setDocGenre: (genre: string) => void;
-  assistantMode: AssistantMode;
-  setAssistantMode: (mode: AssistantMode) => void;
-  streamingMessage: string;
-  isStreaming: boolean;
 }) {
   // DOM 업데이트 강제 동기화 + 이전 DOM 완전 정리
   useLayoutEffect(() => {
@@ -1253,9 +1250,19 @@ function TabContainer({
     console.log(`🎯 TabContainer rendering - Mode: ${chatMode}, Messages: ${messages.length}, Loading: ${isLoading}`);
   }, [chatMode, messages.length, isLoading]);
 
-  // 2탭 구조로 간소화 (조건부 렌더링 대신 switch 사용)
+  // 각 chatMode별로 완전히 독립된 렌더링 (조건부 렌더링 대신 switch 사용)
   const renderCurrentTab = () => {
     switch (chatMode) {
+      case 'grow':
+        return (
+          <div key="grow-tab-container" className="w-full h-full">
+            <GrowTab
+              messages={messages}
+              isLoading={isLoading}
+              onSuggestionClick={onSuggestionClick}
+            />
+          </div>
+        );
       case 'assistant':
         return (
           <div key="assistant-tab-container" className="w-full h-full">
@@ -1263,10 +1270,6 @@ function TabContainer({
               messages={messages}
               isLoading={isLoading}
               onSuggestionClick={onSuggestionClick}
-              mode={assistantMode}
-              setMode={setAssistantMode}
-              streamingMessage={streamingMessage}
-              isStreaming={isStreaming}
             />
           </div>
         );
