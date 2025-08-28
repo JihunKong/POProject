@@ -2,11 +2,33 @@
 const nextConfig = {
   // Enable standalone output for Docker
   output: 'standalone',
+  
+  // FORCE DISABLE ALL CACHING - 캐시 완전 비활성화
+  experimental: {
+    staleTimes: {
+      dynamic: 0,
+      static: 0,
+    },
+  },
+  
   async headers() {
     return [
       {
         source: '/:path*',
         headers: [
+          // FORCE NO CACHE - 모든 캐시 비활성화
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
+          },
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',

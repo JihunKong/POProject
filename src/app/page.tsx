@@ -1,5 +1,9 @@
 'use client';
 
+// FORCE DISABLE ALL CACHING 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';

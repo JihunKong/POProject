@@ -14,6 +14,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// FORCE DISABLE ALL CACHING 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export const metadata: Metadata = {
   title: {
     default: "Pure-Ocean Project - AI 챗봇",

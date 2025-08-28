@@ -1,3 +1,4 @@
-# FORCE CACHE CLEAR: Thu Aug 28 20:16:00 KST 2025
-# Clear Next.js cache, PM2 reload, and force complete rebuild
-BUILD_TIMESTAMP=$(date +%s)
+# NUCLEAR CACHE CLEAR: Thu Aug 28 20:35:00 KST 2025
+# Complete Next.js cache system disable + rebuild
+# ISR disabled, static generation disabled, all cache headers no-store
+NUCLEAR_BUILD=$(date +%s)
