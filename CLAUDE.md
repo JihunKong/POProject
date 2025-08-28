@@ -49,6 +49,9 @@ npx prisma generate         # Generate Prisma client
 # Linting and type checking
 npm run lint               # Run ESLint
 npx tsc --noEmit          # TypeScript type check
+
+# EC2 deployment
+npm run deploy:ec2         # Deploy to EC2 server (15.164.202.209)
 ```
 
 ## High-Level Architecture
@@ -72,8 +75,8 @@ npx tsc --noEmit          # TypeScript type check
    - Role-based access control with Student/Teacher/Admin roles
 
 4. **Deployment Architecture**
-   - Railway platform for Next.js hosting
-   - PostgreSQL on Railway
+   - EC2 server for Next.js hosting (15.164.202.209)
+   - PostgreSQL on EC2 server
    - Streamlit Cloud for Python feedback app
    - Environment-based configuration
 
@@ -124,5 +127,5 @@ Both applications require specific environment variables:
 2. **Korean Language**: UI and documentation primarily in Korean
 3. **Educational Context**: Features designed for high school project-based learning
 4. **Security**: No sensitive data in code, all secrets in environment variables
-5. **Deployment**: Railway for Next.js, Streamlit Cloud for Python app
+5. **Deployment**: EC2 server for Next.js, Streamlit Cloud for Python app
 6. **Note**: "Pure Ocean" is the name for Wando High School students, not a project name
