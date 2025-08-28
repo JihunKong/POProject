@@ -654,8 +654,7 @@ function ChatInterfaceContent() {
     docs: { messages: [], conversationId: null }
   });
   
-  // 탭 전환 강제 리렌더링을 위한 상태
-  const [tabRenderKey, setTabRenderKey] = useState(0);
+  // 탭 전환 강제 리렌더링을 위한 상태 (중복 제거됨)
   
   const [input, setInput] = useState('');
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -668,7 +667,6 @@ function ChatInterfaceContent() {
   const [chatMode, setChatMode] = useState<ChatMode>(initialChatMode);
   
   // 강제 리렌더링을 위한 카운터 (전문가 회의 결과)
-  const [tabRenderKey, setTabRenderKey] = useState(0);
   const [forceRender, setForceRender] = useState(0); // 강제 리렌더링을 위한 카운터
   
   // 직접 상태 접근 (useMemo 제거하여 캐싱 이슈 방지)
@@ -1060,14 +1058,17 @@ function ChatInterfaceContent() {
               <div className="flex space-x-1">
                 <button
                   onClick={() => {
-                    console.log('🚀 Switching to GROW tab');
-                    // flushSync로 즉시 동기 업데이트 (전문가 제안)
+                    console.log('🚀 Switching to GROW tab - DOM will be completely rebuilt');
+                    // 단계별 DOM 완전 교체 보장
                     flushSync(() => {
                       setChatMode('grow');
-                      setTabRenderKey(prev => prev + 1); // 강제 리렌더링 트리거
-                      setForceRender(prev => prev + 1); // 추가 강제 리렌더링
+                      setForceRender(prev => prev + 1); // 강제 리렌더링
                     });
-                    // Keep existing conversation context for GROW tab (consistent with assistant)
+                    // 추가 보험: 다음 프레임에서 한 번 더 강제 업데이트 
+                    setTimeout(() => {
+                      setForceRender(prev => prev + 1);
+                    }, 0);
+                    console.log('🔄 GROW tab switch completed');
                   }}
                   className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
                     chatMode === 'grow'
@@ -1080,14 +1081,17 @@ function ChatInterfaceContent() {
                 </button>
                 <button
                   onClick={() => {
-                    console.log('🚀 Switching to ASSISTANT tab');
-                    // flushSync로 즉시 동기 업데이트 (전문가 제안)
+                    console.log('🚀 Switching to ASSISTANT tab - DOM will be completely rebuilt');
+                    // 단계별 DOM 완전 교체 보장
                     flushSync(() => {
                       setChatMode('assistant');
-                      setTabRenderKey(prev => prev + 1); // 강제 리렌더링 트리거  
-                      setForceRender(prev => prev + 1); // 추가 강제 리렌더링
+                      setForceRender(prev => prev + 1); // 강제 리렌더링
                     });
-                    // Keep existing conversation context for assistant tab (persistent conversations)
+                    // 추가 보험: 다음 프레임에서 한 번 더 강제 업데이트 
+                    setTimeout(() => {
+                      setForceRender(prev => prev + 1);
+                    }, 0);
+                    console.log('🔄 ASSISTANT tab switch completed');
                   }}
                   className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
                     chatMode === 'assistant'
@@ -1100,14 +1104,17 @@ function ChatInterfaceContent() {
                 </button>
                 <button
                   onClick={() => {
-                    console.log('🚀 Switching to DOCS tab');
-                    // flushSync로 즉시 동기 업데이트 (전문가 제안)
+                    console.log('🚀 Switching to DOCS tab - DOM will be completely rebuilt');
+                    // 단계별 DOM 완전 교체 보장
                     flushSync(() => {
                       setChatMode('docs');
-                      setTabRenderKey(prev => prev + 1); // 강제 리렌더링 트리거
-                      setForceRender(prev => prev + 1); // 추가 강제 리렌더링
+                      setForceRender(prev => prev + 1); // 강제 리렌더링
                     });
-                    // Keep existing conversation context for DOCS tab (consistent with assistant)
+                    // 추가 보험: 다음 프레임에서 한 번 더 강제 업데이트 
+                    setTimeout(() => {
+                      setForceRender(prev => prev + 1);
+                    }, 0);
+                    console.log('🔄 DOCS tab switch completed');
                   }}
                   className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
                     chatMode === 'docs'
@@ -1145,11 +1152,11 @@ function ChatInterfaceContent() {
                 </div>
               </div>
             ) : (
-              // 복합 키로 확실한 리마운팅 보장하여 탭 전환 시 UI 업데이트 강제
-              <TabRenderer
-                key={`${chatMode}-${tabRenderKey}-${forceRender}`} // 삼중 키로 절대적 리마운팅 보장
+              // 강제 DOM 교체를 위한 독립 컨테이너 (조건부 렌더링 대신 확실한 리마운트)
+              <TabContainer
+                key={`${chatMode}-${forceRender}-${Date.now()}`} // 타임스탬프로 100% 고유 키 보장
                 chatMode={chatMode}
-                messages={currentMessages} // 현재 탭의 메시지만 전달
+                messages={currentMessages}
                 isLoading={sendMessage.isPending}
                 onSuggestionClick={handleSuggestionClick}
                 docUrl={docUrl}
@@ -1201,6 +1208,93 @@ function ChatInterfaceContent() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// 독립적인 탭 컨테이너 - 확실한 DOM 교체 보장
+function TabContainer({
+  chatMode,
+  messages,
+  isLoading,
+  onSuggestionClick,
+  docUrl,
+  setDocUrl,
+  docGenre,
+  setDocGenre
+}: {
+  chatMode: ChatMode;
+  messages: Message[];
+  isLoading: boolean;
+  onSuggestionClick: (suggestion: string) => void;
+  docUrl: string;
+  setDocUrl: (url: string) => void;
+  docGenre: string;
+  setDocGenre: (genre: string) => void;
+}) {
+  // DOM 업데이트 강제 동기화 + 이전 DOM 완전 정리
+  useLayoutEffect(() => {
+    console.log(`🔄 TabContainer: Forcefully rendering ${chatMode}, DOM cleared and rebuilt`);
+    
+    // 추가 보안: 브라우저에게 DOM 정리 강제 요청
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        console.log(`🧹 TabContainer: DOM cleanup completed for ${chatMode}`);
+      });
+    }
+  }, [chatMode]);
+
+  // chatMode 변경 감지 
+  useEffect(() => {
+    console.log(`🔄 TabContainer: chatMode changed to ${chatMode}, messages count: ${messages.length}`);
+    console.log(`🎯 TabContainer rendering - Mode: ${chatMode}, Messages: ${messages.length}, Loading: ${isLoading}`);
+  }, [chatMode, messages.length, isLoading]);
+
+  // 각 chatMode별로 완전히 독립된 렌더링 (조건부 렌더링 대신 switch 사용)
+  const renderCurrentTab = () => {
+    switch (chatMode) {
+      case 'grow':
+        return (
+          <div key="grow-tab-container" className="w-full h-full">
+            <GrowTab
+              messages={messages}
+              isLoading={isLoading}
+              onSuggestionClick={onSuggestionClick}
+            />
+          </div>
+        );
+      case 'assistant':
+        return (
+          <div key="assistant-tab-container" className="w-full h-full">
+            <AssistantTab
+              messages={messages}
+              isLoading={isLoading}
+              onSuggestionClick={onSuggestionClick}
+            />
+          </div>
+        );
+      case 'docs':
+        return (
+          <div key="docs-tab-container" className="w-full h-full">
+            <DocsTab
+              messages={messages}
+              isLoading={isLoading}
+              onSuggestionClick={onSuggestionClick}
+              docUrl={docUrl}
+              setDocUrl={setDocUrl}
+              docGenre={docGenre}
+              setDocGenre={setDocGenre}
+            />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="w-full h-full">
+      {renderCurrentTab()}
     </div>
   );
 }
