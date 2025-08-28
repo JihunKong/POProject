@@ -73,14 +73,23 @@ jobs:
           git fetch origin
           git reset --hard origin/main
           
+          # FORCE CLEAR ALL CACHES
+          rm -rf .next/
+          rm -rf node_modules/.cache/
+          npm cache clean --force
+          
           # Install dependencies
           npm ci --production=false
           
-          # Build application
+          # Build application with force flag
           npm run build
           
-          # Restart application with PM2
-          pm2 restart pure-ocean-platform
+          # Stop PM2 processes completely
+          pm2 delete pure-ocean-platform || true
+          pm2 flush
+          
+          # Start fresh PM2 process
+          pm2 start ecosystem.config.js
           
           # Wait for application to start
           sleep 5
