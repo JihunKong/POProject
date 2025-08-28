@@ -677,20 +677,29 @@ function ChatInterfaceContent() {
   // 현재 탭별 독립적 스크롤 - DOM 참조 충돌 완전 방지
   const scrollToBottom = useCallback((force = false, targetMode?: ChatMode) => {
     const mode = targetMode || chatMode;
+    console.log(`📜 Scroll request for mode: ${mode}, force: ${force}`);
+    
     if (!isUserScrolling || force) {
       const container = messagesContainerRefs.current[mode];
+      console.log(`📜 Container for ${mode}:`, container ? 'Found' : 'NULL');
+      
       if (container) {
         // 즉시 실행으로 타이밍 이슈 제거
         requestAnimationFrame(() => {
           // 한 번 더 검증하여 탭 전환 시 잘못된 참조 방지
           if (messagesContainerRefs.current[mode] === container) {
+            console.log(`📜 Scrolling ${mode} to bottom`);
             container.scrollTo({
               top: container.scrollHeight,
               behavior: 'smooth'
             });
+          } else {
+            console.log(`⚠️ Reference changed for ${mode}, skipping scroll`);
           }
         });
       }
+    } else {
+      console.log(`📜 User scrolling, skipping auto-scroll for ${mode}`);
     }
   }, [isUserScrolling, chatMode]);
 
@@ -1069,7 +1078,14 @@ function ChatInterfaceContent() {
         </div>
 
         {/* Messages Area */}
-        <div ref={(el) => { messagesContainerRefs.current[chatMode] = el; }} className="flex-1 overflow-y-auto flex">
+        <div 
+          key={`container-${chatMode}`}
+          ref={(el) => { 
+            console.log(`🔧 Setting ref for ${chatMode}:`, el ? 'Element' : 'null');
+            messagesContainerRefs.current[chatMode] = el; 
+          }} 
+          className="flex-1 overflow-y-auto flex"
+        >
           <div className="w-full max-w-5xl mx-auto p-4 md:p-6">
             {isLoadingMessages ? (
               <div className="flex justify-center items-center h-full">
