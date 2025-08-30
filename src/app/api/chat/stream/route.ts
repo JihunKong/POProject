@@ -77,9 +77,30 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    // assistantMode에 따른 시스템 프롬프트 선택
+    let systemPrompt = SOCRATIC_SYSTEM_PROMPT; // 기본값: 코칭 모드
+
+    if (assistantMode === 'general') {
+      systemPrompt = `당신은 Pure Ocean 프로젝트 도우미입니다.
+
+**역할:**
+- 프로젝트 관련 질문에 직접적이고 유용한 답변 제공
+- 설문조사, SDGs 연계, 일정 계획 등 구체적 도움 제공
+- 필요시 자료 검색 및 예시 제공
+
+**답변 원칙:**
+1. 질문에 대한 직접적인 답변 제공
+2. 구체적이고 실행 가능한 제안
+3. 예시와 템플릿 활용  
+4. 친근하고 도움이 되는 톤 유지
+5. 소크라테스식 질문보다는 해답 제시 우선
+
+Pure Ocean 프로젝트 자료를 기반으로 학생들이 원하는 정보를 찾아 제공해주세요.`;
+    }
+
     // OpenAI API 메시지 구성
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-      { role: 'system' as const, content: SOCRATIC_SYSTEM_PROMPT },
+      { role: 'system' as const, content: systemPrompt },
     ];
 
     // 코칭 모드가 아닐 때만 이전 대화 포함

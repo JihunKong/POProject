@@ -1,15 +1,78 @@
 'use client';
 
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, memo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import { useMutation, useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { DocumentJobData, DocumentJobResponse, DocumentJobStatus, DocumentJobDetails } from '@/types/document-job';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { Message, Conversation } from '@/types';
-import { Lightbulb, Waves, Target, Bot, User, Plus, Send, Info, Menu, X, Clock, ChevronRight, MessageSquare, FileText, HelpCircle } from 'lucide-react';
+// Socket.IO imports removed - using HTTP only
+import { Lightbulb, Waves, Target, Bot, User, Plus, Send, Info, Menu, X, Clock, ChevronRight, MessageSquare, FileText, HelpCircle, CheckCircle, AlertCircle, Loader, Bell } from 'lucide-react';
+import { useDocumentFeedback } from '@/hooks/useDocumentFeedback';
+import { useNotifications } from '@/lib/notifications';
 
 const queryClient = new QueryClient();
+
+// 학생 친화적 애니메이션을 위한 스타일
+const studentFriendlyStyles = `
+  .animate-spin-slow {
+    animation: spin 3s ease-in-out infinite;
+  }
+  
+  .animate-bounce-gentle {
+    animation: bounce-gentle 2s ease-in-out infinite;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  
+  .scale-102 {
+    transform: scale(1.02);
+  }
+  
+  .progress-shimmer {
+    animation: shimmer 2s ease-in-out infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    50% { transform: rotate(180deg) scale(1.1); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  @keyframes bounce-gentle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes scaleIn {
+    from { 
+      transform: scale(0.8) translateY(20px);
+      opacity: 0;
+    }
+    to { 
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: 200px 0; }
+  }
+`;
 
 type ChatMode = 'assistant' | 'docs';
 type AssistantMode = 'general' | 'coaching';
@@ -22,7 +85,492 @@ interface ChatState {
 
 // 2탭 구조로 변경: 프로젝트 도우미 (코칭 모드 포함), 문서 첨삭
 
-function AssistantTab({ 
+// 문서 첨삭 버튼 및 진행률 표시 컴포넌트
+const DocumentFeedbackButton = memo(function DocumentFeedbackButton({
+  docUrl,
+  docGenre,
+  isLoading,
+  addMessage,
+  setIsLoading,
+  setGlobalProcessing,
+  setGlobalJobStatus
+}: {
+  docUrl: string;
+  docGenre: string;
+  isLoading: boolean;
+  addMessage: (message: Message) => void;
+  setIsLoading: (loading: boolean) => void;
+  setGlobalProcessing?: (processing: boolean) => void;
+  setGlobalJobStatus?: (status: DocumentJobData | null) => void;
+}) {
+  // 즉시 애니메이션 표시를 위한 상태
+  const [showProgress, setShowProgress] = useState(false);
+  const {
+    currentJobId,
+    jobStatus,
+    isSubmitting,
+    statusError,
+    startFeedback,
+    resetJob
+  } = useDocumentFeedback() as {
+    currentJobId: string | null;
+    jobStatus: DocumentJobData | undefined;
+    isSubmitting: boolean;
+    statusError: Error | null;
+    startFeedback: (genre: string, docUrl: string) => Promise<DocumentJobResponse>;
+    resetJob: () => void;
+  };
+
+  const {
+    permission: notificationPermission,
+    requestPermission,
+    notifyDocumentCompleted,
+    notifyDocumentFailed,
+    isSupported: isNotificationSupported
+  } = useNotifications();
+
+  // 첨삭 작업 시작
+  const handleStartFeedback = async () => {
+    if (!docUrl || isSubmitting) return;
+
+    // 즉시 애니메이션 시작
+    setShowProgress(true);
+    
+    // 전역 상태에 즉시 표시
+    if (setGlobalProcessing && setGlobalJobStatus) {
+      setGlobalProcessing(true);
+      setGlobalJobStatus(mockJobStatus);
+    }
+    
+    try {
+      console.log('🔍 Starting document feedback process');
+      console.log('📝 Document URL:', docUrl, 'Genre:', docGenre);
+      
+      // 사용자 메시지 추가 - 학생 친화적으로 변경
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: `🎯 ${docGenre} 첨삭을 시작할게요!
+
+✨ **꼼꼼하게 첨삭하겠습니다**  
+분량에 따라 최장 10분까지 소요될 수 있습니다.  
+창을 닫지 말아주세요.
+
+📝 문서: ${docUrl}`,
+        timestamp: new Date()
+      };
+      addMessage(userMessage);
+
+      // 백그라운드 작업 시작  
+      const startTime = Date.now();
+      const response = await startFeedback(docGenre, docUrl);
+      const responseTime = Date.now() - startTime;
+      
+      // 작업 시작 성공시 계속 애니메이션 표시
+      console.log('✅ Job started, keeping animation visible');
+      
+      console.log('✅ Document feedback job started successfully');
+      console.log('📊 Job ID:', response.jobId);
+
+    } catch (error) {
+      console.error('❌ FAILED to start feedback job:', error);
+      console.error('🔍 Error type:', typeof error);
+      console.error('📊 Error details:', error);
+      
+      // 학생 친화적 에러 처리
+      let errorMessage = '잠시 문제가 생겼어요.';
+      
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { error?: string }, status?: number } };
+        console.log('🌐 HTTP Status:', axiosError.response?.status);
+        
+        if (axiosError.response?.status === 504) {
+          errorMessage = '서버가 잠시 바빠요. 조금 더 기다려주세요!';
+        } else if (axiosError.response?.data?.error) {
+          errorMessage = axiosError.response.data.error;
+        }
+      }
+
+      const errorMsg: Message = {
+        id: Date.now().toString() + '_error',
+        role: 'assistant',
+        content: `😊 **잠깐만요!**
+
+${errorMessage}
+
+**이렇게 해보세요:**
+✅ 문서 공유 권한을 확인해주세요  
+✅ 문서 링크가 정확한지 확인해주세요  
+✅ 잠시 후 다시 시도해주세요
+
+💭 궁금한 점이 있으면 선생님께 물어보세요!`,
+        timestamp: new Date()
+      };
+      addMessage(errorMsg);
+      
+      // 에러 발생시 애니메이션 중지
+      setShowProgress(false);
+      if (setGlobalProcessing) {
+        setGlobalProcessing(false);
+      }
+    }
+  };
+
+  // 완료 메시지 추가 및 브라우저 알림 (한 번만 실행)
+  useEffect(() => {
+    if (jobStatus?.status === 'COMPLETED' && jobStatus.successMessage) {
+      // 완료시 애니메이션 중지
+      setShowProgress(false);
+      if (setGlobalProcessing) {
+        setGlobalProcessing(false);
+      }
+      const successMessage: Message = {
+        id: `completion_${jobStatus.jobId}`,
+        role: 'assistant',
+        content: jobStatus.successMessage,
+        timestamp: new Date()
+      };
+      addMessage(successMessage);
+
+      // 브라우저 알림 표시
+      const documentTitle = jobStatus.documentUrl.split('/').pop() || '문서';
+      const docLink = `https://docs.google.com/document/d/${jobStatus.jobId.split('-')[0]}/edit`;
+      notifyDocumentCompleted(documentTitle, docLink);
+      
+      // 완료 후 상태 정리
+      setTimeout(() => {
+        resetJob();
+        setIsLoading(false);
+      }, 1000);
+    }
+  }, [jobStatus?.status, jobStatus?.successMessage, addMessage, resetJob, setIsLoading, jobStatus?.jobId, jobStatus?.documentUrl, notifyDocumentCompleted]);
+
+  // 실패 메시지 추가 및 브라우저 알림
+  useEffect(() => {
+    if (jobStatus?.status === 'FAILED') {
+      // 실패시 애니메이션 중지
+      setShowProgress(false);
+      if (setGlobalProcessing) {
+        setGlobalProcessing(false);
+      }
+      const errorMessage: Message = {
+        id: `error_${jobStatus.jobId}`,
+        role: 'assistant',
+        content: `😊 **아직 첨삭이 끝나지 않았어요**
+
+잠시 문제가 생겼네요. 글았.. 함께 해결해보아요!
+
+**이렇게 해보세요:**
+✅ 문서 공유 권한을 확인해주세요  
+✅ 문서 링크가 정확한지 확인해주세요  
+✅ 잠시 후 다시 시도해주세요
+
+💭 여전히 문제가 있다면 선생님께 말씀드리세요!`,
+        timestamp: new Date()
+      };
+      addMessage(errorMessage);
+
+      // 브라우저 알림 표시
+      const documentTitle = jobStatus.documentUrl.split('/').pop() || '문서';
+      notifyDocumentFailed(documentTitle, jobStatus.error || '알 수 없는 오류');
+      
+      // 실패 후 상태 정리
+      setTimeout(() => {
+        resetJob();
+        setIsLoading(false);
+      }, 1000);
+    }
+  }, [jobStatus?.status, jobStatus?.error, addMessage, resetJob, setIsLoading, jobStatus?.jobId, jobStatus?.documentUrl, notifyDocumentFailed]);
+
+  // 진행 중인지 판단 - 즉시 애니메이션 표시 포함
+  const isProcessing = Boolean(
+    showProgress || 
+    (currentJobId && (jobStatus?.status === 'PENDING' || jobStatus?.status === 'PROCESSING'))
+  );
+  
+  // 실제 데이터로 전역 상태 업데이트
+  useEffect(() => {
+    if (jobStatus && setGlobalJobStatus) {
+      setGlobalJobStatus(jobStatus);
+    }
+  }, [jobStatus, setGlobalJobStatus]);
+
+  // 목업 진행률 상태 (실제 데이터가 없을 때 애니메이션 표시용)
+  const mockJobStatus: DocumentJobData = {
+    jobId: 'mock-' + Date.now(),
+    status: 'PROCESSING',
+    progress: showProgress && !jobStatus ? 15 : jobStatus?.progress || 0,
+    currentStep: showProgress && !jobStatus ? '문서 읽기 시작' : jobStatus?.currentStep || null,
+    totalSteps: 4,
+    estimatedTimeRemaining: showProgress && !jobStatus ? 8 : jobStatus?.estimatedTimeRemaining || 5,
+    estimatedTotalTime: 10,
+    error: null,
+    startedAt: new Date().toISOString(),
+    completedAt: null,
+    commentsAdded: 0,
+    stepDetails: {
+      documentAccess: showProgress && !jobStatus ? 'pending' : jobStatus?.stepDetails?.documentAccess || 'pending',
+      contentAnalysis: 'pending',
+      feedbackGeneration: 'pending', 
+      documentUpdate: 'pending'
+    },
+    documentUrl: docUrl,
+    genre: docGenre,
+    successMessage: null
+  };
+  
+  return (
+    <>
+      <button
+        onClick={handleStartFeedback}
+        disabled={!docUrl || isSubmitting || isProcessing}
+        className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+      >
+        {isSubmitting ? '🚀 준비 중...' : 
+         isProcessing ? '📝 첨삭 중...' : 
+         '✨ 첨삭 시작하기'}
+      </button>
+
+      {/* 알림 권한 요청 */}
+      {isNotificationSupported && notificationPermission === 'default' && (
+        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Bell className="w-4 h-4 text-yellow-600" />
+            <span className="text-sm font-medium text-yellow-800">📱 알림 설정</span>
+          </div>
+          <p className="text-xs text-yellow-700 mb-2">
+            🔔 첨삭이 끝나면 알림을 받을 수 있어요!
+          </p>
+          <button
+            onClick={requestPermission}
+            className="text-xs bg-yellow-100 text-yellow-800 px-3 py-1 rounded hover:bg-yellow-200 transition-colors"
+          >
+            ✨ 알림 받기
+          </button>
+        </div>
+      )}
+      
+      {/* 전체 화면 프로그레스 오버레이는 최상위에서 표시됨 */}
+    </>
+  );
+});
+
+// 학생 친화적 문서 처리 진행률 표시 컴포넌트  
+const DocumentProgressIndicator = memo(function DocumentProgressIndicator({
+  jobStatus,
+  isFullScreen = false
+}: {
+  jobStatus: DocumentJobData;
+  isFullScreen?: boolean;
+}) {
+  const [animatedProgress, setAnimatedProgress] = useState(0);
+
+  // 부드러운 진행률 애니메이션
+  useEffect(() => {
+    const targetProgress = jobStatus.progress || 0;
+    const startProgress = animatedProgress;
+    const difference = targetProgress - startProgress;
+    const duration = 800; // 800ms 애니메이션
+    const steps = 30;
+    const increment = difference / steps;
+    let currentStep = 0;
+
+    const timer = setInterval(() => {
+      currentStep++;
+      if (currentStep >= steps) {
+        setAnimatedProgress(targetProgress);
+        clearInterval(timer);
+      } else {
+        setAnimatedProgress(startProgress + (increment * currentStep));
+      }
+    }, duration / steps);
+
+    return () => clearInterval(timer);
+  }, [jobStatus.progress, animatedProgress]);
+
+  const getStepIcon = (stepName: keyof DocumentJobDetails, status?: 'pending' | 'completed' | 'failed') => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case 'failed':
+        return <AlertCircle className="w-5 h-5 text-red-500" />;
+      default:
+        return (
+          <div className="w-5 h-5 text-blue-500 animate-spin">
+            📚
+          </div>
+        );
+    }
+  };
+
+  const steps = [
+    { key: 'documentAccess' as const, label: '📖 문서 열어보기', desc: '문서 내용을 불러오고 있어요' },
+    { key: 'contentAnalysis' as const, label: '🔍 내용 분석하기', desc: '어떤 부분을 개선할지 찾고 있어요' },
+    { key: 'feedbackGeneration' as const, label: '✨ 도움되는 조언 만들기', desc: '유용한 피드백을 작성하고 있어요' },
+    { key: 'documentUpdate' as const, label: '💬 문서에 의견 달기', desc: '문서에 의견을 예쁘게 달고 있어요' }
+  ];
+
+  const getProgressMessage = (progress: number) => {
+    if (progress < 20) return "📚 문서를 열심히 읽고 있어요...";
+    if (progress < 40) return "🔍 내용을 꼼꼼히 분석 중이에요...";
+    if (progress < 60) return "✨ 좋은 아이디어를 찾고 있어요...";
+    if (progress < 80) return "📝 도움이 될 피드백을 만들고 있어요...";
+    if (progress < 100) return "💬 문서에 의견을 예쁜 언어로 작성 중...";
+    return "🎉 다 완료됐어요! 미션 완료!";
+  };
+
+  const containerClass = isFullScreen 
+    ? "p-2 sm:p-3 md:p-4 bg-gradient-to-br from-blue-50 via-white to-purple-50 rounded-xl border-2 border-blue-300 shadow-2xl backdrop-blur-lg w-full max-w-[90vw] max-h-[90vh] overflow-hidden flex flex-col"
+    : "mt-4 p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border-2 border-blue-200 shadow-sm";
+    
+  const emojiSize = isFullScreen 
+    ? "text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl" 
+    : "text-3xl sm:text-4xl md:text-5xl lg:text-6xl";
+  const percentSize = isFullScreen 
+    ? "text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl" 
+    : "text-2xl sm:text-3xl md:text-4xl lg:text-5xl";
+  
+  return (
+    <div className={containerClass}>
+      {/* 고정 헤더 - 항상 보이도록 */}
+      <div className="flex-shrink-0 text-center mb-4 sm:mb-6">
+        {/* 큰 퍼센트 숫자와 애니메이션 스피너 */}
+        <div className="flex items-center justify-center gap-6 mb-6">
+          <div className="relative">
+            <div className={`${emojiSize} animate-spin-slow text-blue-500`}>
+              📝
+            </div>
+            <div className="absolute -bottom-3 -right-3 animate-bounce-gentle text-3xl">
+              ✨
+            </div>
+            {isFullScreen && (
+              <div className="absolute -top-4 -left-4 animate-bounce text-2xl" style={{animationDelay: '1s'}}>
+                🎯
+              </div>
+            )}
+          </div>
+          <div className={`${percentSize} font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent drop-shadow-lg`}>
+            {Math.round(animatedProgress)}%
+          </div>
+        </div>
+        
+        {/* 현재 상태 메시지 */}
+        <div className={`bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl p-2 sm:p-3 mb-3 sm:mb-4 ${isFullScreen ? 'text-sm sm:text-base' : 'text-base lg:text-lg'}`}>
+          <p className={`font-bold text-gray-800 text-center ${isFullScreen ? 'text-sm sm:text-base md:text-lg' : 'text-base lg:text-lg'}`}>
+            {getProgressMessage(animatedProgress)}
+          </p>
+        </div>
+        
+        {/* 예쁜 진행률 바 */}
+        <div className={`relative w-full bg-gray-200 rounded-full overflow-hidden shadow-inner mb-4 ${isFullScreen ? 'h-4 sm:h-6 md:h-8' : 'h-4 sm:h-5'}`}>
+          <div 
+            className={`${isFullScreen ? 'h-4 sm:h-6 md:h-8' : 'h-4 sm:h-5'} rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 shadow-lg progress-shimmer`}
+            style={{ 
+              width: `${animatedProgress}%`,
+              backgroundImage: 'linear-gradient(45deg, transparent 25%, rgba(255,255,255,0.3) 25%, rgba(255,255,255,0.3) 75%, transparent 75%)',
+              backgroundSize: isFullScreen ? '20px 20px' : '15px 15px',
+              animation: animatedProgress > 0 ? 'shimmer 2s ease-in-out infinite' : 'none',
+              boxShadow: animatedProgress > 0 ? '0 0 20px rgba(99, 102, 241, 0.8), inset 0 2px 0 rgba(255,255,255,0.5)' : 'none'
+            }}
+          >
+            {/* 진행률 바 내부 반짝임 효과 */}
+            <div className="w-full h-full bg-gradient-to-r from-transparent via-white to-transparent opacity-40 animate-pulse"></div>
+          </div>
+          {/* 진행 퍼센트 표시 */}
+          {animatedProgress > 10 && (
+            <div 
+              className="absolute top-0 h-full flex items-center transition-all duration-1000"
+              style={{ left: `${Math.max(10, animatedProgress - 5)}%` }}
+            >
+              <span className={`font-bold text-white drop-shadow-lg ${isFullScreen ? 'text-xs sm:text-sm md:text-base lg:text-lg' : 'text-xs'}`}>
+                {Math.round(animatedProgress)}%
+              </span>
+            </div>
+          )}
+        </div>
+        
+        {/* 예상 시간 */}
+        <div className={`bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border-2 border-yellow-300 ${isFullScreen ? 'p-2 sm:p-3' : 'p-3'}`}>
+          <p className={`text-yellow-800 text-center font-bold ${isFullScreen ? 'text-xs sm:text-sm md:text-base' : 'text-sm'}`}>
+            ⏰ 약 {jobStatus.estimatedTimeRemaining}분 정도 더 기다려주세요
+            {isFullScreen && (
+              <span className="block text-xs mt-1 opacity-80">화면을 닫지 말고 잠시만 기다려주세요!</span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* 스크롤 가능한 단계별 진행 상황 */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="space-y-3">
+          <h4 className={`font-bold text-gray-800 mb-3 text-center ${isFullScreen ? 'text-base' : 'text-lg'}`}>🚀 지금 하고 있는 일</h4>
+        {steps.map(({ key, label, desc }) => {
+          const stepStatus = jobStatus.stepDetails?.[key];
+          const isActive = jobStatus.currentStep?.includes(label.replace(/^.{2}\s/, ''));
+          return (
+            <div key={key} className={`relative p-4 rounded-xl transition-all duration-500 transform ${
+              isActive ? 'bg-gradient-to-r from-blue-100 to-purple-100 border-2 border-blue-300 shadow-lg scale-105 animate-bounce-gentle' : 
+              stepStatus === 'completed' ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200' : 
+              'bg-gray-50 border border-gray-200'
+            }`}>
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 mt-1">
+                  {getStepIcon(key, stepStatus)}
+                </div>
+                <div className="flex-1">
+                  <div className={`font-bold text-sm mb-1 ${
+                    stepStatus === 'completed' ? 'text-green-700 line-through' : 
+                    stepStatus === 'failed' ? 'text-red-700' : 
+                    isActive ? 'text-blue-800' :
+                    'text-gray-600'
+                  }`}>
+                    {label}
+                  </div>
+                  <div className={`text-xs ${
+                    isActive ? 'text-blue-700' : 'text-gray-500'
+                  }`}>
+                    {desc}
+                  </div>
+                </div>
+                {isActive && (
+                  <div className="absolute -top-1 -right-1">
+                    <div className="animate-bounce text-lg">✨</div>
+                  </div>
+                )}
+                {stepStatus === 'completed' && (
+                  <div className="absolute -top-1 -right-1">
+                    <div className="text-lg">🎉</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        </div>
+      </div>
+      
+      {/* 고정 푸터 - 격려 메시지 */}
+      <div className="flex-shrink-0 mt-3 sm:mt-4 p-3 sm:p-4 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 rounded-xl border-2 border-pink-200 shadow-md">
+        <div className="text-center">
+          <div className={`mb-1 animate-bounce-gentle ${isFullScreen ? 'text-2xl' : 'text-3xl'}`}>🌟</div>
+          <p className={`font-bold text-purple-800 mb-1 ${isFullScreen ? 'text-sm' : 'text-lg'}`}>
+            열심히 작업 중이에요!
+          </p>
+          <p className={`text-purple-700 ${isFullScreen ? 'text-xs' : 'text-sm'}`}>
+            조금만 기다려주세요. 완료되면 알림을 보내드릴게요! 🔔
+          </p>
+          <div className="mt-2 flex justify-center items-center gap-1">
+            <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{animationDelay: '0s'}}></div>
+            <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const AssistantTab = memo(function AssistantTab({ 
   messages, 
   isLoading, 
   onSuggestionClick,
@@ -338,26 +886,36 @@ function AssistantTab({
       )}
     </div>
   );
-}
+});
 
 // 단일 컴포넌트로 모든 탭 렌더링 처리 - 내부 조건부 렌더링으로 탭 전환
 
-function DocsTab({ 
+const DocsTab = memo(function DocsTab({ 
   messages, 
   isLoading, 
-  onSuggestionClick,
   docUrl,
   setDocUrl,
   docGenre,
-  setDocGenre 
+  setDocGenre,
+  addMessage,
+  setIsLoading,
+  streamingMessage,
+  isStreaming,
+  setGlobalProcessing,
+  setGlobalJobStatus
 }: {
   messages: Message[];
   isLoading: boolean;
-  onSuggestionClick: (suggestion: string) => void;
   docUrl: string;
   setDocUrl: (url: string) => void;
   docGenre: string;
   setDocGenre: (genre: string) => void;
+  addMessage: (message: Message) => void;
+  setIsLoading: (loading: boolean) => void;
+  streamingMessage?: string;
+  isStreaming?: boolean;
+  setGlobalProcessing?: (processing: boolean) => void;
+  setGlobalJobStatus?: (status: DocumentJobData | null) => void;
 }) {
   if (messages.length === 0) {
     return (
@@ -409,17 +967,15 @@ function DocsTab({
                   </select>
                 </div>
                 
-                <button
-                  onClick={() => {
-                    if (docUrl) {
-                      onSuggestionClick(`${docGenre} 첨삭을 요청합니다. URL: ${docUrl}`);
-                    }
-                  }}
-                  disabled={!docUrl}
-                  className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  첨삭 요청
-                </button>
+                <DocumentFeedbackButton
+                  docUrl={docUrl}
+                  docGenre={docGenre}
+                  isLoading={isLoading}
+                  addMessage={addMessage}
+                  setIsLoading={setIsLoading}
+                  setGlobalProcessing={setGlobalProcessing}
+                  setGlobalJobStatus={setGlobalJobStatus}
+                />
               </div>
             </div>
             
@@ -538,13 +1094,67 @@ function DocsTab({
           </div>
         </div>
       )}
+
+      {/* 스트리밍 메시지 표시 - DocsTab */}
+      {isStreaming && streamingMessage && (
+        <div className="flex gap-3">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+              <Bot className="w-6 h-6 text-white" />
+            </div>
+          </div>
+          <div className="max-w-2xl">
+            <div className="rounded-2xl px-6 py-4 shadow-sm bg-white border border-gray-200">
+              <div className="whitespace-pre-wrap text-gray-800">
+                <div className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2">
+                  <ReactMarkdown
+                    components={{
+                      a: ({ ...props }) => (
+                        <a 
+                          {...props} 
+                          className="underline hover:no-underline text-blue-600 hover:text-blue-800"
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                        />
+                      ),
+                      strong: ({ ...props }) => (
+                        <strong {...props} className="font-bold" />
+                      ),
+                      p: ({ ...props }) => (
+                        <p {...props} className="mb-2 last:mb-0" />
+                      ),
+                      ul: ({ ...props }) => (
+                        <ul {...props} className="list-disc list-inside mb-2" />
+                      ),
+                      ol: ({ ...props }) => (
+                        <ol {...props} className="list-decimal list-inside mb-2" />
+                      ),
+                      li: ({ ...props }) => (
+                        <li {...props} className="mb-1" />
+                      )
+                    }}
+                  >
+                    {streamingMessage}
+                  </ReactMarkdown>
+                  {/* 타이핑 인디케이터 */}
+                  <span className="inline-block w-2 h-5 bg-gray-400 ml-1 animate-pulse"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+});
 
 function ChatInterfaceContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
+  
+  // 전체 화면 문서 진행률 표시 상태
+  const [globalProcessing, setGlobalProcessing] = useState(false);
+  const [globalJobStatus, setGlobalJobStatus] = useState<DocumentJobData | null>(null);
   
   // 2탭 구조 상태 관리 (코칭은 서브모드로)
   const [chatStates, setChatStates] = useState<Record<ChatMode, ChatState>>({
@@ -612,6 +1222,12 @@ function ChatInterfaceContent() {
     docs: null
   });
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // 안정화된 ref 콜백 - 무한 재설정 방지
+  const setMessagesContainerRef = useCallback((el: HTMLDivElement | null) => {
+    console.log(`🔧 Setting ref for ${chatMode}:`, el ? 'Element' : 'null');
+    messagesContainerRefs.current[chatMode] = el;
+  }, [chatMode]);
 
   // 현재 탭별 독립적 스크롤 - DOM 참조 충돌 완전 방지
   const scrollToBottom = useCallback((force = false, targetMode?: ChatMode) => {
@@ -681,6 +1297,7 @@ function ChatInterfaceContent() {
   }, [input]);
 
   // 현재 탭의 상태 업데이트 헬퍼 함수 (useCallback으로 안정화)
+  // 현재 탭 상태 업데이트
   const updateCurrentTabState = useCallback((updates: Partial<ChatState>) => {
     setChatStates(prev => ({
       ...prev,
@@ -688,7 +1305,21 @@ function ChatInterfaceContent() {
     }));
   }, [chatMode]);
 
-  // Load conversation messages
+  const addMessage = useCallback((message: Message) => {
+    updateCurrentTabState({
+      messages: [...currentMessages, message]
+    });
+  }, [updateCurrentTabState, currentMessages]);
+
+  // 특정 탭 상태 업데이트 (탭 전환용)
+  const updateTabState = useCallback((tab: ChatMode, updates: Partial<ChatState>) => {
+    setChatStates(prev => ({
+      ...prev,
+      [tab]: { ...prev[tab], ...updates }
+    }));
+  }, []);
+
+  // 대화 불러오기 (대화 유형 감지하여 적절한 탭으로 자동 전환)
   const loadConversation = async (convId: string) => {
     setIsLoadingMessages(true);
     setShowHistory(false);
@@ -700,7 +1331,21 @@ function ChatInterfaceContent() {
         content: msg.content,
         timestamp: new Date(msg.timestamp),
       }));
-      updateCurrentTabState({ messages: loadedMessages, conversationId: convId });
+      
+      // 대화 내용 분석하여 적절한 탭 결정
+      const conversationType = analyzeConversationType(loadedMessages);
+      const targetTab: ChatMode = conversationType === 'docs' ? 'docs' : 'assistant';
+      
+      console.log(`📁 Loading conversation ${convId} to ${targetTab} tab`);
+      
+      // 대화가 속한 탭으로 전환
+      if (targetTab !== chatMode) {
+        setChatMode(targetTab);
+      }
+      
+      // 해당 탭에 대화 로드
+      updateTabState(targetTab, { messages: loadedMessages, conversationId: convId });
+      
       // Don't auto-scroll when loading conversation
       setIsUserScrolling(true);
       // Allow user to manually scroll after loading
@@ -711,6 +1356,18 @@ function ChatInterfaceContent() {
     } finally {
       setIsLoadingMessages(false);
     }
+  };
+
+  // 대화 유형 분석 (문서 첨삭인지 일반 대화인지 판단)
+  const analyzeConversationType = (messages: Message[]): 'assistant' | 'docs' => {
+    const docKeywords = ['첨삭', '워크시트', 'docs.google.com', '문서', '보고서', 'PPT'];
+    const conversationText = messages.map(m => m.content).join(' ').toLowerCase();
+    
+    const hasDocKeywords = docKeywords.some(keyword => 
+      conversationText.includes(keyword.toLowerCase())
+    );
+    
+    return hasDocKeywords ? 'docs' : 'assistant';
   };
 
   const { data: conversationsData, refetch: refetchConversations, isLoading: isLoadingConversations, error: conversationsError } = useQuery({
@@ -724,43 +1381,39 @@ function ChatInterfaceContent() {
     enabled: !!session,
   });
 
-  // 스트리밍 메시지 처리 함수
-  const handleStreamingMessage = async (message: string) => {
-    console.log('🚀 Starting streaming message:', { message, chatMode, assistantMode });
-    setIsStreaming(true);
-    setStreamingMessage('');
+  // Using HTTP-only approach
 
-    // 사용자 메시지를 먼저 화면에 표시
+
+  // HTTP 스트리밍 기반 메시지 처리 (WebSocket 대체)
+  const handleHttpMessage = useCallback(async (message: string) => {
+    console.log('🌐 Using HTTP streaming for message:', { message, chatMode, assistantMode });
+    
     const userMessage: Message = {
       role: 'user',
       content: message,
       timestamp: new Date(),
     };
-    updateCurrentTabState({ messages: [...currentMessages, userMessage] });
+    
+    updateCurrentTabState({
+      messages: [...currentMessages, userMessage]
+    });
     scrollToBottom(true, chatMode);
 
-    let endpoint = '/api/chat/stream';
-    let payload: Record<string, unknown> = {
-      conversationId: currentConversationId,
+    // 스트리밍 시작
+    setIsStreaming(true);
+    setStreamingMessage('');
+
+    // HTTP 스트리밍 API 호출
+    const endpoint = '/api/chat/stream';
+    const payload = {
+      conversationId: (chatMode === 'assistant' && assistantMode === 'coaching') ? null : currentConversationId,
       message,
       assistantMode,
     };
-    
-    if (chatMode === 'assistant') {
-      if (assistantMode === 'coaching') {
-        endpoint = '/api/chat/stream';
-        payload = {
-          conversationId: null,
-          message,
-          assistantMode: 'coaching',
-        };
-      } else {
-        endpoint = '/api/chat/rag/stream';
-      }
-    }
 
     try {
-      console.log('📡 Making streaming request to:', endpoint, payload);
+      console.log('🔄 Starting HTTP streaming:', endpoint);
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -769,149 +1422,112 @@ function ChatInterfaceContent() {
         body: JSON.stringify(payload),
       });
 
-      console.log('📡 Response status:', response.status, response.ok);
       if (!response.ok) {
-        throw new Error(`Stream request failed: ${response.status} ${response.statusText}`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const reader = response.body?.getReader();
       if (!reader) {
-        throw new Error('No response body');
+        throw new Error('No response body stream');
       }
 
       const decoder = new TextDecoder();
-      let currentMessage = '';
+      let fullMessage = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              
-              if (data.type === 'chunk') {
-                currentMessage += data.content;
-                console.log('📝 Streaming chunk received:', data.content);
-                setStreamingMessage(currentMessage);
-                // 스트리밍 중 스크롤
-                scrollToBottom(true, chatMode);
-              } else if (data.type === 'complete') {
-                console.log('✅ Streaming complete:', data.fullMessage);
-                // 스트리밍 완료 - 최종 메시지 저장
-                const assistantMessage: Message = {
-                  role: 'assistant',
-                  content: data.fullMessage,
-                  timestamp: new Date(),
-                };
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6);
+              if (jsonStr.trim() === '[DONE]') continue;
+
+              try {
+                const data = JSON.parse(jsonStr);
                 
-                updateCurrentTabState({
-                  conversationId: (chatMode === 'assistant' && assistantMode === 'coaching') ? null : data.conversationId,
-                  messages: [...currentMessages, userMessage, assistantMessage]
-                });
-                
-                // 코칭 모드가 아닐 때만 대화 히스토리 갱신
-                if (!(chatMode === 'assistant' && assistantMode === 'coaching')) {
-                  refetchConversations();
+                switch (data.type) {
+                  case 'chunk':
+                    if (data.content) {
+                      fullMessage += data.content;
+                      setStreamingMessage(prev => prev + data.content);
+                      scrollToBottom(true, chatMode);
+                    }
+                    break;
+                    
+                  case 'complete':
+                    console.log('✅ HTTP streaming complete:', fullMessage);
+                    
+                    // 최종 메시지 저장
+                    const assistantMessage: Message = {
+                      role: 'assistant',
+                      content: data.fullMessage || fullMessage,
+                      timestamp: new Date(),
+                    };
+                    
+                    updateCurrentTabState({
+                      conversationId: (chatMode === 'assistant' && assistantMode === 'coaching') ? null : data.conversationId,
+                      messages: [...currentMessages, userMessage, assistantMessage]
+                    });
+                    
+                    if (!(chatMode === 'assistant' && assistantMode === 'coaching')) {
+                      refetchConversations();
+                    }
+                    
+                    setStreamingMessage('');
+                    setIsStreaming(false);
+                    scrollToBottom(true, chatMode);
+                    return;
+                    
+                  case 'error':
+                    throw new Error(data.error || 'Unknown streaming error');
                 }
-                
-                setStreamingMessage('');
-                setIsStreaming(false);
-                return;
-              } else if (data.type === 'error') {
-                throw new Error(data.error);
+              } catch (parseError) {
+                console.warn('Failed to parse SSE data:', parseError);
               }
-            } catch (parseError) {
-              console.warn('Failed to parse SSE data:', parseError);
             }
           }
         }
+      } finally {
+        reader.releaseLock();
       }
+
     } catch (error) {
-      console.error('Streaming error:', error);
+      console.error('❌ HTTP streaming failed:', error);
       setIsStreaming(false);
       setStreamingMessage('');
-      alert(error instanceof Error ? error.message : '스트리밍 중 오류가 발생했습니다.');
-    }
-  };
-
-  const sendMessage = useMutation({
-    mutationFn: async (message: string) => {
-      let endpoint = '/api/chat';
-      let payload: Record<string, unknown> = {
-        conversationId: currentConversationId,
-        message,
+      
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: `죄송합니다. 서버와의 연결에 문제가 발생했습니다: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date(),
       };
       
-      if (chatMode === 'assistant') {
-        if (assistantMode === 'coaching') {
-          // 코칭 모드: stateless, 대화 기억하지 않음
-          endpoint = '/api/chat';
-          payload = {
-            conversationId: null, // 새 세션으로 시작
-            message,
-          };
-        } else {
-          // 일반 모드: 기존 RAG 시스템 사용
-          endpoint = '/api/chat/rag';
-        }
-      } else if (chatMode === 'docs') {
-        endpoint = '/api/docs/feedback';
-        // Parse doc URL and genre from message
-        const match = message.match(/(.+) 첨삭을 요청합니다\. URL: (.+)/);
-        if (match) {
-          payload = {
-            genre: match[1],
-            docUrl: match[2],
-          };
-        }
-      }
-      
-      try {
-        const response = await axios.post(endpoint, payload, {
-          timeout: chatMode === 'docs' ? 120000 : 30000, // 문서 첨삭은 2분, 나머지는 30초
-        });
-        return response.data;
-      } catch (error: unknown) {
-        if (axios.isAxiosError(error)) {
-          if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-            throw new Error(`요청 시간이 초과되었습니다. ${chatMode === 'docs' ? '문서 분석' : '응답 생성'}에 시간이 오래 걸리고 있습니다. 잠시 후 다시 시도해주세요.`);
-          }
-          if (error.response?.status === 504) {
-            throw new Error('서버 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
-          }
-        }
-        throw error;
-      }
-    },
-    onSuccess: (data) => {
       updateCurrentTabState({
-        // 코칭 모드일 때는 conversationId를 저장하지 않음 (stateless)
-        conversationId: (chatMode === 'assistant' && assistantMode === 'coaching') ? null : data.conversationId,
-        messages: [...currentMessages, {
-          role: 'assistant',
-          content: data.message,
-          timestamp: new Date(),
-        }]
+        messages: [...currentMessages, userMessage, errorMessage]
       });
       
-      // 코칭 모드가 아닐 때만 대화 히스토리 갱신
-      if (!(chatMode === 'assistant' && assistantMode === 'coaching')) {
-        refetchConversations();
-      }
-      // 응답 완료 후 현재 탭에만 스크롤 적용
       scrollToBottom(true, chatMode);
-    },
-    onError: (error: Error) => {
-      console.error('메시지 전송 오류:', error);
-      const errorMessage = error.message || '메시지 전송에 실패했습니다.';
-      alert(errorMessage);
-    },
-  });
+    }
+  }, [chatMode, assistantMode, currentConversationId, currentMessages, updateCurrentTabState, scrollToBottom, refetchConversations]);
+
+  // Removed WebSocket handler - using HTTP only
+
+  // HTTP-only message sending
+  const handleStreamingMessage = useCallback(async (message: string) => {
+    console.log('🌐 Using HTTP streaming for message:', { 
+      message: message.substring(0, 50) + '...',
+      chatMode, 
+      assistantMode
+    });
+    
+    return handleHttpMessage(message);
+  }, [chatMode, assistantMode, handleHttpMessage]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -934,50 +1550,52 @@ function ChatInterfaceContent() {
   };
 
   const handleSuggestionClick = async (suggestion: string) => {
-    if (chatMode === 'docs') {
-      // 문서 첨삭 모드에서는 기존 방식 사용 (스트리밍 없이)
-      const userMessage: Message = {
-        role: 'user',
-        content: suggestion,
-        timestamp: new Date(),
-      };
-      
-      updateCurrentTabState({ messages: [...currentMessages, userMessage] });
-      sendMessage.mutate(suggestion);
-      scrollToBottom(true, chatMode);
-    } else {
-      // 다른 모드에서는 스트리밍으로 바로 전송
-      await handleStreamingMessage(suggestion);
-    }
+    // HTTP 스트리밍 사용
+    await handleStreamingMessage(suggestion);
   };
 
   return (
     <div className="flex h-full w-full bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+      {/* 전체 화면 문서 진행률 오버레이 */}
+      {globalProcessing && globalJobStatus && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center animate-fade-in">
+          <div className="w-[90vw] max-w-md mx-2 animate-scale-in">
+            <DocumentProgressIndicator 
+              jobStatus={globalJobStatus} 
+              isFullScreen={true}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Mobile Menu Button */}
       <button
         onClick={() => setShowMobileMenu(!showMobileMenu)}
-        className="lg:hidden fixed top-20 left-4 z-50 p-2 bg-white rounded-xl shadow-lg"
+        className="lg:hidden fixed top-20 left-4 z-40 p-2 bg-white rounded-xl shadow-lg"
       >
         {showMobileMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
-      {/* History Sidebar - Mobile Overlay */}
-      {showMobileMenu && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={() => setShowMobileMenu(false)}
-        />
-      )}
+      {/* History Sidebar - Only show in Assistant tab */}
+      {chatMode === 'assistant' && (
+        <>
+          {/* Mobile Overlay */}
+          {showMobileMenu && (
+            <div
+              className="lg:hidden fixed inset-0 bg-black/50 z-40"
+              onClick={() => setShowMobileMenu(false)}
+            />
+          )}
 
-      {/* History Sidebar */}
-      <div className={`
-        fixed lg:relative lg:flex
-        ${showMobileMenu ? 'left-0' : '-left-full lg:left-0'}
-        ${showHistory ? 'lg:w-80' : 'lg:w-0'}
-        top-0 h-full w-80 bg-white shadow-xl
-        transition-all duration-300 ease-in-out z-50
-        overflow-hidden
-      `}>
+          {/* History Sidebar */}
+          <div className={`
+            fixed lg:relative lg:flex
+            ${showMobileMenu ? 'left-0' : '-left-full lg:left-0'}
+            ${showHistory ? 'lg:w-80' : 'lg:w-0'}
+            top-0 h-full w-80 bg-white shadow-xl
+            transition-all duration-300 ease-in-out z-50
+            overflow-hidden
+          `}>
         <div className="w-80 p-4 overflow-y-auto">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-gray-800">대화 기록</h3>
@@ -1049,6 +1667,8 @@ function ChatInterfaceContent() {
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full w-full">
@@ -1064,7 +1684,7 @@ function ChatInterfaceContent() {
           <div className="px-4 md:px-6 py-4">
             <div className="flex items-center justify-between max-w-6xl mx-auto">
               <div className="flex items-center gap-3">
-                {!showHistory && (
+                {chatMode === 'assistant' && !showHistory && (
                   <button
                     onClick={() => setShowHistory(true)}
                     className="hidden lg:flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -1087,6 +1707,8 @@ function ChatInterfaceContent() {
                   </div>
                 </div>
               </div>
+
+              {/* WebSocket status display removed - using HTTP only */}
             </div>
           </div>
           
@@ -1123,10 +1745,7 @@ function ChatInterfaceContent() {
 
         {/* Messages Area */}
         <div 
-          ref={(el) => { 
-            console.log(`🔧 Setting ref for ${chatMode}:`, el ? 'Element' : 'null');
-            messagesContainerRefs.current[chatMode] = el; 
-          }} 
+          ref={setMessagesContainerRef}
           className="flex-1 overflow-y-auto flex"
         >
           <div className="w-full max-w-5xl mx-auto p-4 md:p-6">
@@ -1143,12 +1762,11 @@ function ChatInterfaceContent() {
                 </div>
               </div>
             ) : (
-              // 강제 DOM 교체를 위한 독립 컨테이너 (조건부 렌더링 대신 확실한 리마운트)
               <TabContainer
-                key={`${chatMode}-${Date.now()}`} // 타임스탬프로 고유 키 보장
+                key={chatMode}
                 chatMode={chatMode}
                 messages={currentMessages}
-                isLoading={sendMessage.isPending}
+                isLoading={isStreaming}
                 onSuggestionClick={handleSuggestionClick}
                 docUrl={docUrl}
                 setDocUrl={setDocUrl}
@@ -1158,13 +1776,17 @@ function ChatInterfaceContent() {
                 setAssistantMode={setAssistantMode}
                 streamingMessage={streamingMessage}
                 isStreaming={isStreaming}
+                addMessage={addMessage}
+                setIsStreaming={setIsStreaming}
+                setGlobalProcessing={setGlobalProcessing}
+                setGlobalJobStatus={setGlobalJobStatus}
               />
             )}
           </div>
         </div>
 
-        {/* Input Area */}
-        {chatMode !== 'docs' && (
+        {/* Input Area - 문서 첨삭에서 후속 질문 허용 */}
+        {(chatMode === 'assistant' || (chatMode === 'docs' && currentMessages.length > 0)) && (
           <div className="bg-white border-t border-gray-200 p-4">
             <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
               <div className="flex gap-3 items-end">
@@ -1179,7 +1801,7 @@ function ChatInterfaceContent() {
                       handleSubmit(e);
                     }
                   }}
-                  placeholder="궁금한 점을 물어보세요..."
+                  placeholder={chatMode === 'docs' ? "첨삭 결과에 대해 추가 질문하세요..." : "궁금한 점을 물어보세요..."}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl 
                            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                            resize-none min-h-[52px] max-h-32"
@@ -1191,12 +1813,20 @@ function ChatInterfaceContent() {
               </div>
               <button
                 type="submit"
-                disabled={!input.trim() || sendMessage.isPending}
+                disabled={!input.trim() || isStreaming}
                 className="btn-primary px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed
                          flex items-center gap-2"
+                title="HTTP로 메시지 전송"
               >
                 <Send className="w-5 h-5" />
                 <span className="hidden sm:inline">전송</span>
+                
+                {/* 전송 모드 표시 */}
+                {chatMode === 'assistant' && (
+                  <span className="hidden md:inline text-xs opacity-70">
+                    🌐
+                  </span>
+                )}
               </button>
               </div>
             </form>
@@ -1208,7 +1838,7 @@ function ChatInterfaceContent() {
 }
 
 // 독립적인 탭 컨테이너 - 확실한 DOM 교체 보장
-function TabContainer({
+const TabContainer = memo(function TabContainer({
   chatMode,
   messages,
   isLoading,
@@ -1220,7 +1850,11 @@ function TabContainer({
   assistantMode,
   setAssistantMode,
   streamingMessage,
-  isStreaming
+  isStreaming,
+  addMessage,
+  setIsStreaming,
+  setGlobalProcessing,
+  setGlobalJobStatus
 }: {
   chatMode: ChatMode;
   messages: Message[];
@@ -1234,71 +1868,62 @@ function TabContainer({
   setAssistantMode: (mode: AssistantMode) => void;
   streamingMessage: string;
   isStreaming: boolean;
+  addMessage: (message: Message) => void;
+  setIsStreaming: (loading: boolean) => void;
+  setGlobalProcessing: (processing: boolean) => void;
+  setGlobalJobStatus: (status: DocumentJobData | null) => void;
 }) {
-  // DOM 업데이트 강제 동기화 + 이전 DOM 완전 정리
+  // 탭 변경 시에만 DOM 정리
   useLayoutEffect(() => {
-    console.log(`🔄 TabContainer: Forcefully rendering ${chatMode}, DOM cleared and rebuilt`);
-    
-    // 추가 보안: 브라우저에게 DOM 정리 강제 요청
-    if (typeof window !== 'undefined') {
-      window.requestAnimationFrame(() => {
-        console.log(`🧹 TabContainer: DOM cleanup completed for ${chatMode}`);
-      });
-    }
+    console.log(`🔄 TabContainer: Switched to ${chatMode}`);
   }, [chatMode]);
 
-  // chatMode 변경 감지 
+  // chatMode 변경 감지 (로깅 최소화)
   useEffect(() => {
-    console.log(`🔄 TabContainer: chatMode changed to ${chatMode}, messages count: ${messages.length}`);
-    console.log(`🎯 TabContainer rendering - Mode: ${chatMode}, Messages: ${messages.length}, Loading: ${isLoading}`);
-  }, [chatMode, messages.length, isLoading]);
-
-  // 2탭 구조로 간소화 (조건부 렌더링 대신 switch 사용)
-  const renderCurrentTab = () => {
-    switch (chatMode) {
-      case 'assistant':
-        return (
-          <div key="assistant-tab-container" className="w-full h-full">
-            <AssistantTab
-              messages={messages}
-              isLoading={isLoading}
-              onSuggestionClick={onSuggestionClick}
-              mode={assistantMode}
-              setMode={setAssistantMode}
-              streamingMessage={streamingMessage}
-              isStreaming={isStreaming}
-            />
-          </div>
-        );
-      case 'docs':
-        return (
-          <div key="docs-tab-container" className="w-full h-full">
-            <DocsTab
-              messages={messages}
-              isLoading={isLoading}
-              onSuggestionClick={onSuggestionClick}
-              docUrl={docUrl}
-              setDocUrl={setDocUrl}
-              docGenre={docGenre}
-              setDocGenre={setDocGenre}
-            />
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
+    console.log(`🎯 TabContainer: Switched to ${chatMode}`);
+  }, [chatMode]);
 
   return (
     <div className="w-full h-full">
-      {renderCurrentTab()}
+      {chatMode === 'assistant' && (
+        <div key="assistant-tab-container" className="w-full h-full">
+          <AssistantTab
+            messages={messages}
+            isLoading={isLoading}
+            onSuggestionClick={onSuggestionClick}
+            mode={assistantMode}
+            setMode={setAssistantMode}
+            streamingMessage={streamingMessage}
+            isStreaming={isStreaming}
+          />
+        </div>
+      )}
+      {chatMode === 'docs' && (
+        <div key="docs-tab-container" className="w-full h-full">
+          <DocsTab
+            messages={messages}
+            isLoading={isStreaming}
+            docUrl={docUrl}
+            setDocUrl={setDocUrl}
+            docGenre={docGenre}
+            setDocGenre={setDocGenre}
+            addMessage={addMessage}
+            setIsLoading={setIsStreaming}
+            streamingMessage={streamingMessage}
+            isStreaming={isStreaming}
+            setGlobalProcessing={setGlobalProcessing}
+            setGlobalJobStatus={setGlobalJobStatus}
+          />
+        </div>
+      )}
     </div>
   );
-}
+});
 
 export default function ChatInterface() {
   return (
     <QueryClientProvider client={queryClient}>
+      <style dangerouslySetInnerHTML={{ __html: studentFriendlyStyles }} />
       <ChatInterfaceContent />
     </QueryClientProvider>
   );
