@@ -72,6 +72,32 @@ const studentFriendlyStyles = `
     0% { background-position: -200px 0; }
     100% { background-position: 200px 0; }
   }
+  
+  /* 커스텀 스크롤바 스타일 */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 4px;
+    transition: background 0.2s;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+  }
+  
+  /* Firefox 스크롤바 지원 */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 #f1f1f1;
+  }
 `;
 
 type ChatMode = 'assistant' | 'docs';
@@ -1589,36 +1615,40 @@ function ChatInterfaceContent() {
 
           {/* History Sidebar */}
           <div className={`
-            fixed lg:relative lg:flex
-            ${showMobileMenu ? 'left-0' : '-left-full lg:left-0'}
-            ${showHistory ? 'lg:w-80' : 'lg:w-0'}
+            fixed lg:absolute
+            ${showMobileMenu ? 'left-0' : '-left-full'}
+            ${showHistory ? 'lg:left-0' : 'lg:-left-80'}
             top-0 h-full w-80 bg-white shadow-xl
-            transition-all duration-300 ease-in-out z-50
-            overflow-hidden
+            transition-all duration-300 ease-in-out z-40
+            overflow-hidden border-r border-gray-200
           `}>
-        <div className="w-80 p-4 overflow-y-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-800">대화 기록</h3>
+        <div className="w-80 flex flex-col h-full">
+          {/* 고정 헤더 */}
+          <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-800">대화 기록</h3>
+              <button
+                onClick={() => {
+                  setShowHistory(false);
+                  setShowMobileMenu(false);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
             <button
-              onClick={() => {
-                setShowHistory(false);
-                setShowMobileMenu(false);
-              }}
-              className="p-2 hover:bg-gray-100 rounded-lg lg:block hidden"
+              onClick={startNewConversation}
+              className="btn-primary w-full flex items-center justify-center gap-2"
             >
-              <X className="w-5 h-5" />
+              <Plus className="w-5 h-5" />
+              <span>새 대화 시작</span>
             </button>
           </div>
-          
-          <button
-            onClick={startNewConversation}
-            className="btn-primary w-full mb-4 flex items-center justify-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>새 대화 시작</span>
-          </button>
 
-          <div className="space-y-2">
+          {/* 스크롤 가능한 대화 목록 */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
             {isLoadingConversations ? (
               <div className="text-center py-4">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
@@ -1684,16 +1714,6 @@ function ChatInterfaceContent() {
           <div className="px-4 md:px-6 py-4">
             <div className="flex items-center justify-between max-w-6xl mx-auto">
               <div className="flex items-center gap-3">
-                {chatMode === 'assistant' && !showHistory && (
-                  <button
-                    onClick={() => setShowHistory(true)}
-                    className="hidden lg:flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <Clock className="w-4 h-4" />
-                    대화 기록
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                )}
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
                     <Waves className="w-6 h-6 text-white" />
@@ -1715,29 +1735,51 @@ function ChatInterfaceContent() {
           {/* Tab Navigation */}
           <div className="border-t border-gray-200">
             <div className="max-w-6xl mx-auto px-4 md:px-6">
-              <div className="flex space-x-1">
-                <button
-                  onClick={() => setChatMode('assistant')}
-                  className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
-                    chatMode === 'assistant'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  <HelpCircle className="w-4 h-4" />
-                  프로젝트 도우미
-                </button>
-                <button
-                  onClick={() => setChatMode('docs')}
-                  className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
-                    chatMode === 'docs'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  <FileText className="w-4 h-4" />
-                  문서 첨삭
-                </button>
+              <div className="flex items-center justify-between">
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => setChatMode('assistant')}
+                    className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
+                      chatMode === 'assistant'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                    프로젝트 도우미
+                  </button>
+                  <button
+                    onClick={() => setChatMode('docs')}
+                    className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
+                      chatMode === 'docs'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    <FileText className="w-4 h-4" />
+                    문서 첨삭
+                  </button>
+                </div>
+                
+                {/* 대화 기록 버튼을 탭 영역으로 이동 */}
+                {chatMode === 'assistant' && (
+                  <button
+                    onClick={() => setShowHistory(!showHistory)}
+                    className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors ${
+                      showHistory
+                        ? 'text-blue-600 bg-blue-50 border border-blue-200 rounded-lg'
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg'
+                    }`}
+                  >
+                    <Clock className="w-4 h-4" />
+                    대화 기록
+                    {showHistory ? (
+                      <X className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>
