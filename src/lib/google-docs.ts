@@ -431,7 +431,42 @@ export async function detectDocumentChanges(
   };
 }
 
-// Google Docs에 피드백을 인라인 텍스트로 직접 삽입 (복원된 기능)
+// 마크다운을 일반 텍스트로 변환
+function convertMarkdownToPlainText(text: string): string {
+  // **굵게** -> 굵게
+  text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+  // *기울임* -> 기울임
+  text = text.replace(/\*([^*]+)\*/g, '$1');
+  // `코드` -> 코드
+  text = text.replace(/`([^`]+)`/g, '$1');
+  // # 제목 -> 제목:
+  text = text.replace(/^#+\s+(.+)$/gm, '$1:');
+  // [링크](url) -> 링크
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  // ### 소제목 -> ■ 소제목
+  text = text.replace(/^###\s+(.+)$/gm, '■ $1');
+  // ## 중제목 -> ◆ 중제목
+  text = text.replace(/^##\s+(.+)$/gm, '◆ $1');
+  
+  return text;
+}
+
+// Google Docs에 피드백을 삽입 (마크다운 변환 포함)
+export async function insertFeedbackAsComments(
+  docsService: docs_v1.Docs,
+  documentId: string,
+  feedbacks: Array<{
+    type: string;
+    content: string;
+    insert_at: number;
+  }>
+) {
+  // 현재 Google Docs API v1은 코멘트 API를 지원하지 않으므로
+  // 마크다운 변환된 텍스트를 인라인으로 삽입
+  return insertFeedbackToDoc(docsService, documentId, feedbacks);
+}
+
+// Google Docs에 피드백을 인라인 텍스트로 직접 삽입 (기존 기능 - 폴백용)
 export async function insertFeedbackToDoc(
   docsService: docs_v1.Docs,
   documentId: string,
@@ -448,10 +483,13 @@ export async function insertFeedbackToDoc(
     const sortedFeedbacks = [...feedbacks].sort((a, b) => b.insert_at - a.insert_at);
     
     for (const feedback of sortedFeedbacks) {
+      // 마크다운 변환
+      const plainContent = convertMarkdownToPlainText(feedback.content);
+      
       // 섹션별 구분을 위한 헤더 생성
       const sectionHeader = `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-      const feedbackHeader = `🤖 [AI 평가 - ${feedback.type}]\n`;
-      const feedbackContent = `${feedback.content}\n`;
+      const feedbackHeader = `[AI 평가 - ${feedback.type}]\n`;
+      const feedbackContent = `${plainContent}\n`;
       const sectionFooter = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
       
       const fullFeedbackText = sectionHeader + feedbackHeader + feedbackContent + sectionFooter;

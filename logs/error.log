@@ -38,3 +38,9 @@ Error: Could not find a production build in the '.next' directory. Try building 
 2025-08-31 15:00:46 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
 2025-08-31 15:31:21 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
 2025-08-31 15:41:28 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+2025-09-01 02:01:46 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+    at setupFsCheck (/Users/jihunkong/POProject/node_modules/next/dist/server/lib/router-utils/filesystem.js:156:41)
+    at async initialize (/Users/jihunkong/POProject/node_modules/next/dist/server/lib/router-server.js:112:23)
+    at async NextCustomServer.prepare (/Users/jihunkong/POProject/node_modules/next/dist/server/next.js:287:28)

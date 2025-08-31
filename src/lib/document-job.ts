@@ -4,6 +4,7 @@ import {
   getGoogleDocsService, 
   extractDocumentId, 
   getDocumentContent,
+  insertFeedbackAsComments,
   insertFeedbackToDoc,
   identifyDocumentSections,
   optimizeFeedbackPlacement,
@@ -236,9 +237,9 @@ export class DocumentJobManager {
         }
       });
 
-      // Step 4: 문서에 피드백 삽입
+      // Step 4: 문서에 피드백 삽입 (먼저 코멘트로 시도, 실패 시 인라인 텍스트로)
       const optimizedFeedbacks = optimizeFeedbackPlacement(documentSections, feedbacks);
-      const success = await insertFeedbackToDoc(docsService, job.documentId, optimizedFeedbacks);
+      const success = await insertFeedbackAsComments(docsService, job.documentId, optimizedFeedbacks);
 
       if (!success) {
         throw new Error('Failed to insert feedback into document');
@@ -324,13 +325,7 @@ export class DocumentJobManager {
 문서 내용:
 ${fullText.slice(0, 3000)}...
 
-이 문서에 대해 다음과 같이 평가해주세요:
-1. 현재 작성 상태 (미완성/템플릿 상태임을 명시)
-2. 우선적으로 작성해야 할 부분들
-3. 각 단계별 작성 가이드라인
-4. 팀워크를 통한 효율적인 작성 방법
-
-학생들이 체계적으로 워크시트를 완성할 수 있도록 단계별 가이드를 제공해주세요.`;
+아직 내용이 작성되지 않았습니다. 가장 먼저 작성해야 할 부분을 1-2줄로 안내해주세요.`;
     } else {
       overallPrompt = `
 다음은 ${genre}입니다. ${genre}의 일반적인 구조적 원리에 따라 평가해주세요.
@@ -342,36 +337,24 @@ ${fullText.slice(0, 3000)}...
 문서 전체 내용:
 ${fullText.slice(0, 3000)}...
 
-위 ${genre}에 대해 다음 사항을 포함하여 종합적으로 평가해주세요:
-1. 장르에 맞는 구조를 갖추었는지
-2. 각 부분이 적절히 구성되었는지
-3. 개선이 필요한 부분
-4. 잘된 점
-
-평가는 구체적이고 건설적으로 작성해주세요.`;
+위 ${genre}에 대해 가장 중요한 개선점 한 가지를 1-2줄로 간단명료하게 제시해주세요.`;
     }
 
-    const systemPrompt = `당신은 완도고등학교 Pure Ocean Project의 전문 멘토입니다. 
+    const systemPrompt = `당신은 완도고등학교 프로젝트의 전문 멘토입니다. 
           
 역할:
-- 2학년 학생들의 해양 환경 보호 프로젝트 워크시트 검토
+- 2학년 학생들의 다양한 주제 프로젝트 워크시트 검토
 - 7단계 프로젝트 과정에 따른 체계적 피드백 제공
-- SDGs 14번(해양 생태계 보호)을 중심으로 한 융합적 사고 유도
+- SDGs(지속가능발전목표) 전체를 아우르는 융합적 사고 유도
 
 피드백 원칙:
-1. 학생 수준에 맞는 구체적이고 실행 가능한 제안
-2. 긍정적인 부분을 먼저 언급한 후 개선점 제시
-3. 각 단계별 핵심 요소가 충족되었는지 확인
-4. 교과 융합적 사고와 창의성 격려
-5. 팀워크와 협업 역량 강화 방향 제시
+1. 매우 간결하게 1-2줄로 핵심만 전달
+2. 가장 중요한 개선점 한 가지만 제시
+3. 구체적이고 실행 가능한 제안 중심
 
 평가 중점:
-- 해양 환경 문제에 대한 이해도
-- SDGs 연계의 논리성
-- 해결책의 창의성과 실현가능성  
-- 5일간 실행 계획의 구체성
-- 교과 융합의 적절성
-- 성찰의 깊이와 진정성
+- 가장 시급한 개선사항 한 가지
+- 즉시 실행 가능한 조언
 
 중요한 형식 규칙:
 - 마크다운 문법을 사용하지 마세요 (**, *, #, \` 등 사용 금지)
@@ -386,7 +369,7 @@ ${fullText.slice(0, 3000)}...
         { role: "system", content: systemPrompt },
         { role: "user", content: overallPrompt }
       ],
-      max_tokens: 3000,
+      max_tokens: 150,
       temperature: 0.7
     });
 

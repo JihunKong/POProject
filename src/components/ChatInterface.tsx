@@ -263,11 +263,18 @@ ${errorMessage}
       const docLink = `https://docs.google.com/document/d/${jobStatus.jobId.split('-')[0]}/edit`;
       notifyDocumentCompleted(documentTitle, docLink);
       
-      // 완료 후 상태 정리
+      // 완료 메시지 표시 후 자동으로 창 닫기
       setTimeout(() => {
+        // 완료 팝업 메시지
+        alert('✅ 문서 첨삭이 완료되었습니다!\n\n구글 문서에서 댓글을 확인해보세요.');
+        
+        // 상태 정리 및 창 닫기
         resetJob();
         setIsLoading(false);
-      }, 1000);
+        if (setGlobalProcessing) {
+          setGlobalProcessing(false);
+        }
+      }, 3000); // 3초 후 자동 닫기
     }
   }, [jobStatus?.status, jobStatus?.successMessage, addMessage, resetJob, setIsLoading, jobStatus?.jobId, jobStatus?.documentUrl, notifyDocumentCompleted]);
 
