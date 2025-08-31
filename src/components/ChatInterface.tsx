@@ -1618,14 +1618,14 @@ function ChatInterfaceContent() {
             fixed lg:absolute
             ${showMobileMenu ? 'right-0' : '-right-full'}
             ${showHistory ? 'lg:right-0' : 'lg:-right-80'}
-            top-0 h-full w-80 bg-white shadow-xl
+            top-24 lg:top-32 h-[calc(100%-6rem)] lg:h-[calc(100%-8rem)] w-80 bg-white shadow-xl
             transition-all duration-300 ease-in-out z-40
-            overflow-hidden border-l border-gray-200
+            overflow-hidden border-l border-gray-200 rounded-l-xl
           `}>
         <div className="w-80 flex flex-col h-full">
           {/* 고정 헤더 */}
-          <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-white">
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex-shrink-0 p-6 border-b border-gray-200 bg-white rounded-tl-xl">
+            <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-800">대화 기록</h3>
               <button
                 onClick={() => {
@@ -1640,10 +1640,10 @@ function ChatInterfaceContent() {
             
             <button
               onClick={startNewConversation}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+              className="btn-primary w-full py-3 flex items-center justify-center gap-2 hover:scale-102 transition-transform"
             >
               <Plus className="w-5 h-5" />
-              <span>새 대화 시작</span>
+              <span className="font-medium">새 대화 시작</span>
             </button>
           </div>
 
