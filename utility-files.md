@@ -448,17 +448,17 @@ prisma/*.db-journal
 .idea
 ```
 
-## Railway 배포 체크리스트
+## EC2 배포 체크리스트
 
 **deployment-checklist.md**
 ```markdown
-# Railway 배포 체크리스트
+# EC2 배포 체크리스트
 
 ## 배포 전 확인사항
 
 ### 1. 환경 변수
-- [ ] DATABASE_URL (Railway PostgreSQL URL)
-- [ ] NEXTAUTH_URL (https://your-app.up.railway.app)
+- [ ] DATABASE_URL (EC2 PostgreSQL URL)
+- [ ] NEXTAUTH_URL (https://your-app.up.ec2-domain.com)
 - [ ] NEXTAUTH_SECRET (openssl rand -base64 32로 생성)
 - [ ] GOOGLE_CLIENT_ID
 - [ ] GOOGLE_CLIENT_SECRET
@@ -468,10 +468,10 @@ prisma/*.db-journal
 ### 2. Google OAuth 설정
 - [ ] Google Cloud Console에서 OAuth 2.0 클라이언트 생성
 - [ ] 승인된 리디렉션 URI 추가:
-  - https://your-app.up.railway.app/api/auth/callback/google
+  - https://your-app.up.ec2-domain.com/api/auth/callback/google
 
 ### 3. 데이터베이스
-- [ ] Railway PostgreSQL 서비스 추가
+- [ ] EC2 PostgreSQL 서비스 추가
 - [ ] 연결 문자열 확인
 - [ ] Prisma 스키마 푸시: `npx prisma db push`
 
@@ -482,7 +482,7 @@ prisma/*.db-journal
 
 ### 5. 배포
 - [ ] GitHub 리포지토리에 푸시
-- [ ] Railway에서 자동 배포 확인
+- [ ] EC2에서 자동 배포 확인
 - [ ] 빌드 로그 모니터링
 
 ### 6. 배포 후 확인
@@ -494,13 +494,13 @@ prisma/*.db-journal
 ## 문제 해결
 
 ### 빌드 실패 시
-1. Railway 로그 확인
+1. EC2 로그 확인
 2. 환경 변수 누락 확인
 3. package.json 스크립트 확인
 
 ### 데이터베이스 연결 실패 시
 1. DATABASE_URL 형식 확인
-2. Railway PostgreSQL 서비스 상태 확인
+2. EC2 PostgreSQL 서비스 상태 확인
 3. Prisma 스키마 동기화 확인
 
 ### 인증 오류 시

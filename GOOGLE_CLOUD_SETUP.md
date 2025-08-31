@@ -26,13 +26,13 @@
    앱 로고: (선택사항)
    
    앱 도메인:
-   - 앱 홈페이지: https://poproject-production.up.railway.app
-   - 개인정보처리방침: https://poproject-production.up.railway.app/privacy
-   - 서비스 약관: https://poproject-production.up.railway.app/terms
+   - 앱 홈페이지: https://poproject-production.up.ec2-domain.com
+   - 개인정보처리방침: https://poproject-production.up.ec2-domain.com/privacy
+   - 서비스 약관: https://poproject-production.up.ec2-domain.com/terms
    
    승인된 도메인:
-   - poproject-production.up.railway.app
-   - railway.app (상위 도메인)
+   - poproject-production.up.ec2-domain.com
+   - ec2-domain.com (상위 도메인)
    
    개발자 연락처: [교사 이메일]
    ```
@@ -55,11 +55,11 @@
    이름: Pure Ocean Web Client
    
    승인된 JavaScript 원본:
-   - https://poproject-production.up.railway.app
+   - https://poproject-production.up.ec2-domain.com
    - http://localhost:3000 (개발용)
    
    승인된 리디렉션 URI:
-   - https://poproject-production.up.railway.app/api/auth/callback/google
+   - https://poproject-production.up.ec2-domain.com/api/auth/callback/google
    - http://localhost:3000/api/auth/callback/google (개발용)
    ```
 
@@ -70,7 +70,7 @@
 2. 확인 대화상자에서 **확인**
 3. 게시 상태가 "프로덕션"으로 변경 확인
 
-### 6. Railway 환경 변수 업데이트
+### 6. EC2 환경 변수 업데이트
 새로 생성한 OAuth 정보로 업데이트:
 ```
 GOOGLE_CLIENT_ID=[새 클라이언트 ID]
@@ -82,12 +82,12 @@ GOOGLE_CLIENT_SECRET=[새 클라이언트 시크릿]
 만약 새 프로젝트를 만들기 어렵다면:
 
 1. **OAuth 동의 화면** 수정:
-   - 앱 도메인을 railway.app 도메인으로 변경
+   - 앱 도메인을 ec2-domain.com 도메인으로 변경
    - 승인된 도메인에 추가
 
 2. **여러 도메인 지원**:
    - OAuth 클라이언트 ID 설정에서 여러 도메인 추가 가능
-   - classapphub.com과 railway.app 모두 추가
+   - classapphub.com과 ec2-domain.com 모두 추가
 
 ## 주의사항
 

@@ -1,15 +1,15 @@
-# Pure Ocean Platform - AWS RDS Migration Guide
+# Pure Ocean Platform - AWS RDS Deployment Guide
 
-This guide provides step-by-step instructions for migrating the Pure Ocean Platform from Railway PostgreSQL to AWS RDS PostgreSQL.
+This guide provides step-by-step instructions for setting up and deploying the Pure Ocean Platform with AWS RDS PostgreSQL.
 
 ## Overview
 
-**Migration Process:**
-1. Export data from Railway PostgreSQL
-2. Provision AWS RDS PostgreSQL instance
-3. Import data to AWS RDS
-4. Update EC2 environment variables
-5. Test and verify the migration
+**Deployment Process:**
+1. Provision AWS RDS PostgreSQL instance
+2. Set up database schema
+3. Configure EC2 environment variables
+4. Deploy application
+5. Test and verify the deployment
 6. Set up monitoring and alerting
 
 **Estimated Time:** 2-3 hours  
@@ -22,7 +22,6 @@ This guide provides step-by-step instructions for migrating the Pure Ocean Platf
 - Terraform >= 1.0
 - PostgreSQL client tools (psql, pg_dump)
 - SSH access to EC2 instance
-- Railway PostgreSQL access credentials
 
 ### Required AWS Permissions
 ```json
@@ -55,13 +54,6 @@ This guide provides step-by-step instructions for migrating the Pure Ocean Platf
 }
 ```
 
-### Railway Access
-You'll need the following from your Railway PostgreSQL service:
-- Host (e.g., `containers-us-west-1.railway.app`)
-- Port (usually `5432`)
-- Database name
-- Username
-- Password
 
 ## Step 1: Prepare Environment
 
@@ -84,39 +76,12 @@ aws sts get-caller-identity
 
 ### 1.3 Set Environment Variables
 ```bash
-# Railway Database (get these from Railway dashboard)
-export RAILWAY_HOST="containers-us-west-1.railway.app"
-export RAILWAY_PORT="5432"
-export RAILWAY_DATABASE="railway"
-export RAILWAY_USER="postgres"
-export RAILWAY_PASSWORD="your-railway-password"
-
 # AWS Configuration
 export AWS_REGION="ap-northeast-2"
 export EC2_HOST="ec2-15-164-169-201.ap-northeast-2.compute.amazonaws.com"
 ```
 
-## Step 2: Export Railway Data
-
-### 2.1 Run Data Export Script
-```bash
-chmod +x scripts/export-railway-data.sh
-./scripts/export-railway-data.sh
-```
-
-This will create:
-- `backups/TIMESTAMP/schema.sql` - Database schema
-- `backups/TIMESTAMP/data.sql` - Database data  
-- `backups/TIMESTAMP/full_backup.sql` - Complete backup
-- `backups/TIMESTAMP/verify_migration.sql` - Verification script
-
-### 2.2 Verify Export
-```bash
-ls -la backups/*/
-# Check file sizes - they should not be empty
-```
-
-## Step 3: Deploy AWS RDS Infrastructure
+## Step 2: Deploy AWS RDS Infrastructure
 
 ### 3.1 Review Terraform Configuration
 ```bash
@@ -161,9 +126,9 @@ RDS_ENDPOINT=$(terraform output -raw rds_endpoint)
 echo "RDS Endpoint: $RDS_ENDPOINT"
 ```
 
-## Step 4: Import Data to AWS RDS
+## Step 3: Set up Database Schema
 
-### 4.1 Set RDS Connection Variables
+### 3.1 Set RDS Connection Variables
 ```bash
 cd ../scripts/
 
@@ -175,35 +140,20 @@ export RDS_PASSWORD=$(aws secretsmanager get-secret-value \
     --query 'SecretString' --output text | grep -o '"password":"[^"]*"' | cut -d'"' -f4)
 ```
 
-### 4.2 Run Data Import
+### 3.2 Initialize Database Schema
 ```bash
-chmod +x import-to-rds.sh
-
-# Find your backup directory
-BACKUP_DIR=$(find ../backups -name "20*" -type d | sort | tail -n 1)
-echo "Using backup: $BACKUP_DIR"
-
-# Run import
-./import-to-rds.sh "$BACKUP_DIR"
-```
-
-### 4.3 Verify Import
-```bash
-# Check import results
-cat "$BACKUP_DIR/verification_results.txt"
-
-# Manual verification
+# Connect to the database and run Prisma migrations
 psql -h "$RDS_ENDPOINT" -p 5432 -U postgres -d pure_ocean_production
-# Run some test queries:
-# \dt  -- list tables
-# SELECT COUNT(*) FROM "User";
-# SELECT COUNT(*) FROM "Team";
-# \q
+
+# Or use Prisma to set up the schema
+# In your EC2 instance later:
+# npx prisma db push
+# npx prisma db seed (if you have seed data)
 ```
 
-## Step 5: Update EC2 Environment
+## Step 4: Update EC2 Environment
 
-### 5.1 Prepare SSH Access
+### 4.1 Prepare SSH Access
 ```bash
 # Ensure your SSH key has correct permissions
 chmod 400 ~/.ssh/your-key.pem
@@ -212,15 +162,15 @@ chmod 400 ~/.ssh/your-key.pem
 ssh -i ~/.ssh/your-key.pem ubuntu@ec2-15-164-169-201.ap-northeast-2.compute.amazonaws.com "echo 'Connection successful'"
 ```
 
-### 5.2 Get New Database URL
+### 4.2 Get New Database URL
 ```bash
-# The import script should have created this file
-NEW_DATABASE_URL=$(grep 'DATABASE_URL=' "$BACKUP_DIR/new_database_url.env" | cut -d'"' -f2)
+# Build the database URL
+NEW_DATABASE_URL="postgresql://postgres:$RDS_PASSWORD@$RDS_ENDPOINT:5432/pure_ocean_production?sslmode=require"
 export NEW_DATABASE_URL
 echo "New DATABASE_URL: $NEW_DATABASE_URL"
 ```
 
-### 5.3 Update EC2 Environment
+### 4.3 Update EC2 Environment
 ```bash
 chmod +x update-ec2-environment.sh
 
@@ -230,15 +180,15 @@ chmod +x update-ec2-environment.sh
     --dir /home/ubuntu/POProject
 ```
 
-## Step 6: Test Application
+## Step 5: Test Application
 
-### 6.1 Verify Application Status
+### 5.1 Verify Application Status
 ```bash
 # Run health check on EC2
 ssh -i ~/.ssh/your-key.pem ubuntu@$EC2_HOST '/home/ubuntu/POProject/health_check.sh'
 ```
 
-### 6.2 Test Website
+### 5.2 Test Website
 ```bash
 # Test application endpoint
 curl -I http://ec2-15-164-169-201.ap-northeast-2.compute.amazonaws.com
@@ -247,16 +197,16 @@ curl -I http://ec2-15-164-169-201.ap-northeast-2.compute.amazonaws.com
 # http://ec2-15-164-169-201.ap-northeast-2.compute.amazonaws.com
 ```
 
-### 6.3 Test Database Functionality
+### 5.3 Test Database Functionality
 1. Log into the application
 2. Create a test user account
 3. Create a team
 4. Send a message to the chatbot
 5. Verify data persists after browser refresh
 
-## Step 7: Set Up Monitoring
+## Step 6: Set Up Monitoring
 
-### 7.1 Configure Monitoring and Alerts
+### 6.1 Configure Monitoring and Alerts
 ```bash
 chmod +x monitoring-setup.sh
 
@@ -266,35 +216,28 @@ chmod +x monitoring-setup.sh
     --region ap-northeast-2
 ```
 
-### 7.2 Confirm Email Subscription
+### 6.2 Confirm Email Subscription
 1. Check your email for SNS subscription confirmation
 2. Click the confirmation link
 3. Verify you receive test alerts
 
-### 7.3 Access Monitoring Dashboard
+### 6.3 Access Monitoring Dashboard
 1. Go to AWS CloudWatch Console
 2. Navigate to Dashboards
 3. Open "PureOcean-RDS-pure-ocean-production-postgres"
 4. Bookmark for regular monitoring
 
-## Step 8: Post-Migration Tasks
+## Step 7: Post-Deployment Tasks
 
-### 8.1 Update Documentation
+### 7.1 Update Documentation
 ```bash
 # Update any internal documentation with new DATABASE_URL format
 # Update CI/CD pipelines if applicable
 # Update any backup scripts to point to RDS
 ```
 
-### 8.2 Clean Up Railway
-```bash
-# After confirming everything works for at least 48 hours:
-# 1. Download final backup from Railway (optional)
-# 2. Delete Railway PostgreSQL service to stop billing
-# 3. Remove Railway environment variables from any scripts
-```
 
-### 8.3 Schedule Regular Maintenance
+### 7.2 Schedule Regular Maintenance
 ```bash
 # Set up regular tasks:
 # 1. Weekly verification of backups
@@ -303,33 +246,18 @@ chmod +x monitoring-setup.sh
 # 4. Semi-annual security review
 ```
 
-## Rollback Procedure
+## Backup and Recovery
 
-If you need to rollback to Railway:
-
-### Quick Rollback
+### Create Manual Backup
 ```bash
-# 1. SSH to EC2 instance
-ssh -i ~/.ssh/your-key.pem ubuntu@$EC2_HOST
-
-# 2. Restore old environment
-cd /home/ubuntu/POProject
-cp backups/env_TIMESTAMP/.env.backup .env
-
-# 3. Restart application
-pm2 restart all
+# Create a manual backup of the database
+pg_dump -h $RDS_ENDPOINT -p 5432 -U postgres -d pure_ocean_production > backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
-### Complete Rollback
+### Restore from Backup
 ```bash
-# 1. Export current RDS data (if changes were made)
-pg_dump -h $RDS_ENDPOINT -p 5432 -U postgres -d pure_ocean_production > rollback_backup.sql
-
-# 2. Follow quick rollback steps above
-
-# 3. Optionally destroy RDS infrastructure
-cd terraform/
-terraform destroy
+# Restore from a backup file
+psql -h $RDS_ENDPOINT -p 5432 -U postgres -d pure_ocean_production < backup_file.sql
 ```
 
 ## Troubleshooting
@@ -436,16 +364,15 @@ The RDS parameter group includes optimizations for the t3.micro instance:
 
 ## Final Checklist
 
-- [ ] Railway data exported successfully
+- [ ] Database schema initialized successfully
 - [ ] AWS RDS instance created and accessible
-- [ ] Data imported and verified
+- [ ] Database connection verified
 - [ ] EC2 environment updated
 - [ ] Application tested and working
 - [ ] Monitoring and alerts configured
 - [ ] Email subscription confirmed
 - [ ] Documentation updated
 - [ ] Team notified of new infrastructure
-- [ ] Old Railway service scheduled for cleanup
 - [ ] Backup verification scheduled
 - [ ] Performance baseline established
 
@@ -466,7 +393,7 @@ The RDS parameter group includes optimizations for the t3.micro instance:
 
 ---
 
-**Migration completed successfully!** 🎉
+**Deployment completed successfully!** 🎉
 
 Your Pure Ocean Platform is now running on AWS RDS PostgreSQL with enterprise-grade reliability, security, and monitoring.
 

@@ -28,7 +28,7 @@ NEXTAUTH_URL=https://xn--ox6bo4n.com
 - [ ] 리디렉션 URI가 정확히 등록되어 있는가?
 - [ ] OAuth 클라이언트가 "웹 애플리케이션" 타입인가?
 
-### 5. Railway 설정 확인
+### 5. EC2 설정 확인
 - [ ] Custom Domain이 Active 상태인가?
 - [ ] SSL 인증서가 발급되었는가?
 - [ ] 환경 변수가 저장되었는가? (Save 버튼 클릭)

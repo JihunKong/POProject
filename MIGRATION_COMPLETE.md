@@ -1,6 +1,6 @@
 # 🎉 AWS EC2 마이그레이션 완료
 
-Railway에서 AWS EC2로의 마이그레이션이 성공적으로 완료되었습니다!
+Pure Ocean Platform이 AWS EC2에 성공적으로 배포되었습니다!
 
 ## 📍 새로운 서버 정보
 
@@ -124,7 +124,6 @@ npx prisma db push                            # 스키마 동기화
 2. **도메인 연결** - Route53 또는 외부 DNS 설정
 3. **SSL 인증서** - Let's Encrypt 설정
 4. **모니터링** - CloudWatch 또는 다른 모니터링 도구 설정
-5. **Railway 정리** - 기존 Railway 프로젝트 정리
 
 ## 💸 예상 비용
 

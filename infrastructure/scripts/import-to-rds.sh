@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Pure Ocean Platform - AWS RDS Data Import Script
-# This script imports data from Railway backup files to AWS RDS PostgreSQL
+# This script imports data from backup files to AWS RDS PostgreSQL
 
 set -e
 
@@ -122,7 +122,7 @@ validate_backup_directory() {
     
     if [[ ! -d "$BACKUP_DIR" ]]; then
         print_error "Backup directory not found: $BACKUP_DIR"
-        print_message "Please run export-railway-data.sh first to create backup files"
+        print_message "Please create backup files first using your database export tool"
         exit 1
     fi
     
@@ -244,7 +244,7 @@ verify_migration() {
             -f "$VERIFY_SCRIPT" > "$VERIFY_RESULTS" 2>&1
         
         print_success "Verification results saved to: $VERIFY_RESULTS"
-        print_message "Please review the results and compare with Railway data"
+        print_message "Please review the results and compare with your source database data"
         
         # Show a summary
         echo ""

@@ -41,7 +41,7 @@
 - [x] NextAuth API 라우트
 
 ### 배포 준비
-- [x] Railway 설정 파일
+- [x] EC2 배포 스크립트
 - [x] 환경 변수 템플릿
 - [x] 빌드 스크립트 최적화
 - [x] 배포 문서 작성
@@ -64,14 +64,14 @@ ALLOWED_EMAIL_DOMAIN=wando.hs.kr
 - [ ] OAuth 2.0 클라이언트 ID 생성
 - [ ] 승인된 리디렉션 URI 추가
   - 개발: http://localhost:3000/api/auth/callback/google
-  - 프로덕션: https://your-app.up.railway.app/api/auth/callback/google
+  - 프로덕션: http://ec2-15-164-169-201.ap-northeast-2.compute.amazonaws.com:3000/api/auth/callback/google
 
-### 3. Railway 배포
+### 3. EC2 배포
 - [ ] GitHub 저장소에 코드 푸시
-- [ ] Railway에서 프로젝트 생성
-- [ ] PostgreSQL 데이터베이스 추가
+- [ ] EC2 인스턴스에 애플리케이션 배포
+- [ ] PostgreSQL 데이터베이스 설정
 - [ ] 환경 변수 설정
-- [ ] 배포 및 도메인 설정
+- [ ] PM2 프로세스 매니저 설정
 
 ### 4. 배포 후 테스트
 - [ ] 홈페이지 접속 확인

@@ -1571,6 +1571,7 @@ function ChatInterfaceContent() {
       conversationId: null, 
       messages: [] 
     });
+    setChatMode('assistant');  // 새 대화 시작 시 프로젝트 도우미 탭으로 자동 전환
     setShowHistory(false);
     setShowMobileMenu(false);
   };

@@ -23,7 +23,7 @@ Cloudflare DNS 관리에서:
 ```
 Type: CNAME
 Name: @
-Content: poproject-production.up.railway.app
+Content: poproject-production.up.ec2-domain.com
 Proxy status: Proxied (주황색 구름)
 TTL: Auto
 ```
@@ -31,7 +31,7 @@ TTL: Auto
 ```
 Type: CNAME
 Name: www
-Content: poproject-production.up.railway.app
+Content: poproject-production.up.ec2-domain.com
 Proxy status: Proxied (주황색 구름)
 TTL: Auto
 ```
@@ -56,7 +56,7 @@ Cloudflare 대시보드에서:
 
 ## 환경 변수 업데이트
 
-Railway에서:
+EC2에서:
 ```
 NEXTAUTH_URL=https://청해.com
 ```

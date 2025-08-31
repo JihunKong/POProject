@@ -8,6 +8,7 @@ import { Lock } from 'lucide-react';
 function LoginContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/chat';
+  const error = searchParams.get('error');
 
   return (
     <div className="min-h-screen animated-gradient flex items-center justify-center p-4 relative overflow-hidden">
@@ -33,8 +34,31 @@ function LoginContent() {
           </div>
 
           <div className="space-y-4">
+            {error && (
+              <div className="p-4 bg-red-50/80 backdrop-blur-sm rounded-xl border border-red-200/50">
+                <p className="text-sm text-red-700 text-center">
+                  <strong>❌ 로그인 오류:</strong> {' '}
+                  {error === 'OAuthCallback' && 'OAuth 인증 과정에서 문제가 발생했습니다.'}
+                  {error === 'Configuration' && '서버 설정에 문제가 있습니다.'}
+                  {error === 'AccessDenied' && '접근이 거부되었습니다.'}
+                  {error === 'Verification' && '이메일 인증에 실패했습니다.'}
+                  {!['OAuthCallback', 'Configuration', 'AccessDenied', 'Verification'].includes(error) && error}
+                </p>
+                <p className="text-xs text-red-600 text-center mt-2">
+                  계속 문제가 발생하면 다른 Google 계정으로 시도해보세요.
+                </p>
+              </div>
+            )}
+            
             <button
-              onClick={() => signIn('google', { callbackUrl })}
+              onClick={() => {
+                console.log('🔐 Attempting Google sign-in with:', {
+                  callbackUrl,
+                  domain: window.location.hostname,
+                  protocol: window.location.protocol
+                });
+                signIn('google', { callbackUrl });
+              }}
               className="btn-primary w-full flex items-center justify-center gap-3 text-lg"
             >
               <div className="bg-white/20 backdrop-blur-sm p-2 rounded-xl">

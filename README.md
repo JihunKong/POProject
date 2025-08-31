@@ -21,7 +21,7 @@
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: NextAuth.js with Google OAuth
 - **AI**: OpenAI GPT-4
-- **Deployment**: Railway
+- **Deployment**: AWS EC2
 
 ## 🛠️ 설치 및 실행
 
@@ -51,15 +51,15 @@ npx prisma db push
 npm run dev
 ```
 
-## 🚢 Railway 배포
+## 🚀 EC2 배포
 
 1. GitHub 저장소에 코드 푸시
-2. Railway에서 새 프로젝트 생성
-3. GitHub 저장소 연결
-4. PostgreSQL 데이터베이스 추가
+2. EC2 인스턴스에 애플리케이션 배포
+3. PostgreSQL 데이터베이스 설정
+4. PM2 프로세스 매니저 설정
 5. 환경 변수 설정:
-   - `DATABASE_URL` (Railway PostgreSQL URL)
-   - `NEXTAUTH_URL` (https://your-app.up.railway.app)
+   - `DATABASE_URL` (PostgreSQL connection string)
+   - `NEXTAUTH_URL` (http://your-ec2-domain)
    - `NEXTAUTH_SECRET` (openssl rand -base64 32로 생성)
    - `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET`
    - `OPENAI_API_KEY`
@@ -72,7 +72,7 @@ npm run dev
 3. OAuth 2.0 클라이언트 ID 생성
 4. 승인된 리디렉션 URI 추가:
    - 개발: `http://localhost:3000/api/auth/callback/google`
-   - 프로덕션: `https://your-app.up.railway.app/api/auth/callback/google`
+   - 프로덕션: `http://your-ec2-domain/api/auth/callback/google`
 
 ## 🔧 개발 명령어
 

@@ -1,0 +1,40 @@
+2025-08-30 06:54:09 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+Error: bind EADDRINUSE null:3000
+    at listenOnPrimaryHandle (node:net:2020:18)
+    at rr (node:internal/cluster/child:163:12)
+    at Worker.<anonymous> (node:internal/cluster/child:113:7)
+    at process.onInternalMessage (node:internal/cluster/utils:49:5)
+    at process.emit (node:events:519:35)
+    at emit (node:internal/child_process:949:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:91:21)
+2025-08-30 06:54:10 +09:00: Error: bind EADDRINUSE null:3000
+    at <unknown> (Error: bind EADDRINUSE null:3000) {
+  errno: -48,
+  code: 'EADDRINUSE',
+  syscall: 'bind',
+  address: null,
+  port: 3000
+}
+2025-08-30 06:54:10 +09:00:  ⨯ uncaughtException:  Error: bind EADDRINUSE null:3000
+    at <unknown> (Error: bind EADDRINUSE null:3000) {
+  errno: -48,
+  code: 'EADDRINUSE',
+  syscall: 'bind',
+  address: null,
+  port: 3000
+}
+2025-08-30 06:55:01 +09:00: ❌ Error during shutdown: [Error: Server is not running.] { code: 'ERR_SERVER_NOT_RUNNING' }
+2025-08-30 06:55:01 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+2025-08-30 15:22:11 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+2025-08-31 02:00:00 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+2025-08-31 06:54:35 +09:00: [33m[auth][warn][debug-enabled][0m Read more: https://warnings.authjs.dev
+2025-08-31 11:38:32 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id
+    at setupFsCheck (/Users/jihunkong/POProject/node_modules/next/dist/server/lib/router-utils/filesystem.js:156:41)
+    at async initialize (/Users/jihunkong/POProject/node_modules/next/dist/server/lib/router-server.js:112:23)
+    at async NextCustomServer.prepare (/Users/jihunkong/POProject/node_modules/next/dist/server/next.js:287:28)
+2025-08-31 12:03:45 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+2025-08-31 15:00:46 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+2025-08-31 15:31:21 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+2025-08-31 15:41:28 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.

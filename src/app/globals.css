@@ -272,6 +272,24 @@ html {
   }
 }
 
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin-slow,
+  .animate-bounce-gentle,
+  .animate-fade-in,
+  .animate-scale-in,
+  .progress-shimmer,
+  .text-gradient-animate {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .animate-spin-slow {
+    transform: none !important;
+  }
+}
+
 /* Print styles */
 @media print {
   .no-print {

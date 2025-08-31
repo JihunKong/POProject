@@ -31,7 +31,7 @@
 - 실제: `https://청해.com/api/auth/callback/google/`
 - 해결: 후행 슬래시 제거
 
-## Railway 환경 변수 설정
+## EC2 환경 변수 설정
 
 정확한 도메인으로 설정:
 ```
@@ -71,6 +71,6 @@ Google({
 ## 임시 해결책
 
 도메인 설정이 완료될 때까지:
-1. Railway 기본 URL 사용: `https://poproject-production.up.railway.app`
+1. EC2 기본 URL 사용: `https://poproject-production.up.ec2-domain.com`
 2. 이 URL로 Google OAuth 설정
 3. 도메인 DNS 전파 완료 후 전환

@@ -10,7 +10,7 @@
 
 2. **GitHub Pages + Custom Domain**
    - GitHub Pages로 간단한 랜딩 페이지 호스팅
-   - Railway 앱으로 리디렉션
+   - EC2 앱으로 리디렉션
 
 ### 옵션 2: 유료 도메인 구매 (권장)
 
@@ -24,9 +24,9 @@
    - `pureocean-chatbot.com`
    - `wando-pureocean.com`
 
-### Railway에 도메인 연결하기
+### EC2에 도메인 연결하기
 
-1. Railway 대시보드에서 서비스 선택
+1. EC2 대시보드에서 서비스 선택
 2. **Settings** → **Domains**
 3. **+ Custom Domain** 클릭
 4. 도메인 입력 (예: `pureocean.education`)
@@ -37,13 +37,13 @@
 ```
 Type: CNAME
 Name: @ (또는 www)
-Value: [Railway가 제공하는 값]
+Value: [EC2가 제공하는 값]
 TTL: 3600
 ```
 
 ### SSL 인증서
 
-- Railway가 자동으로 Let's Encrypt SSL 인증서 발급
+- EC2가 자동으로 Let's Encrypt SSL 인증서 발급
 - HTTPS가 자동으로 활성화됨
 
 ## Google OAuth 업데이트
@@ -59,7 +59,7 @@ TTL: 3600
    - 승인된 JavaScript 원본에 새 도메인 추가
    - 승인된 리디렉션 URI 업데이트
 
-3. **Railway 환경 변수**
+3. **EC2 환경 변수**
    - `NEXTAUTH_URL=https://[your-domain].com`
 
 ## 임시 해결책

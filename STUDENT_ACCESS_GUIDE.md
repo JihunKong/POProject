@@ -10,7 +10,7 @@
 #### 앱 정보
 - **앱 이름**: Pure Ocean Chatbot (또는 설정한 이름)
 - **사용자 지원 이메일**: 유효한 이메일
-- **앱 도메인**: https://poproject-production.up.railway.app
+- **앱 도메인**: https://poproject-production.up.ec2-domain.com
 - **개인정보처리방침**: 선택사항이지만 있으면 좋음
 - **서비스 약관**: 선택사항
 
@@ -25,12 +25,12 @@
 
 **승인된 JavaScript 원본**:
 ```
-https://poproject-production.up.railway.app
+https://poproject-production.up.ec2-domain.com
 ```
 
 **승인된 리디렉션 URI**:
 ```
-https://poproject-production.up.railway.app/api/auth/callback/google
+https://poproject-production.up.ec2-domain.com/api/auth/callback/google
 ```
 
 ### 3. API 할당량 확인

@@ -8,21 +8,22 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  emailVerified DateTime?
-  name          String?
-  image         String?
-  role          Role           @default(STUDENT)
-  studentId     String?        @unique
-  classRoom     String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  accounts      Account[]
-  analytics     Analytics[]
-  conversations Conversation[]
-  sessions      Session[]
-  teams         TeamMember[]
+  id                String                 @id @default(cuid())
+  email             String                 @unique
+  emailVerified     DateTime?
+  name              String?
+  image             String?
+  role              Role                   @default(STUDENT)
+  studentId         String?                @unique
+  classRoom         String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  accounts          Account[]
+  analytics         Analytics[]
+  conversations     Conversation[]
+  sessions          Session[]
+  teams             TeamMember[]
+  documentJobs      DocumentFeedbackJob[]
 
   @@index([email])
 }
@@ -175,4 +176,42 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+model DocumentFeedbackJob {
+  id              String            @id @default(cuid())
+  userId          String
+  documentId      String
+  documentUrl     String
+  genre           String
+  status          DocumentJobStatus @default(PENDING)
+  progress        Int              @default(0)
+  currentStep     String?
+  totalSteps      Int              @default(4)
+  error           String?
+  startedAt       DateTime         @default(now())
+  completedAt     DateTime?
+  
+  // Google Docs 변경 추적
+  initialRevision String?
+  finalRevision   String?
+  commentsAdded   Int             @default(0)
+  
+  // 진행률 세부 정보  
+  stepDetails     Json?           // { step1: "완료", step2: "진행중" }
+  estimatedTime   Int?            // 예상 소요 시간 (분)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+enum DocumentJobStatus {
+  PENDING     // 대기중
+  PROCESSING  // 처리중
+  COMPLETED   // 완료
+  FAILED      // 실패
+  CANCELLED   // 취소
 }

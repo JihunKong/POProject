@@ -1,59 +1,49 @@
 # 빠른 해결 방법
 
-## Railway 기본 URL 사용하기
+## EC2 배포 URL 사용하기
 
-### 1. Railway 환경 변수 수정
+### 1. EC2 환경 변수 설정
 ```
-NEXTAUTH_URL=https://poproject-production.up.railway.app
+NEXTAUTH_URL=http://ec2-15-164-169-201.ap-northeast-2.compute.amazonaws.com:3000
 ```
 
 ### 2. Google OAuth 설정
 승인된 리디렉션 URI:
 ```
-https://poproject-production.up.railway.app/api/auth/callback/google
+http://ec2-15-164-169-201.ap-northeast-2.compute.amazonaws.com:3000/api/auth/callback/google
 ```
 
 ### 3. 접속
 ```
-https://poproject-production.up.railway.app
+http://ec2-15-164-169-201.ap-northeast-2.compute.amazonaws.com:3000
 ```
 
-## 청해.com 도메인 사용하기 (복잡함)
+## 커스텀 도메인 사용하기 (선택사항)
 
-### 옵션 A: Punycode 사용
-1. Railway 환경 변수:
+### 도메인 연결 후
+1. EC2 환경 변수:
    ```
-   NEXTAUTH_URL=https://xn--ox6bo4n.com
-   ```
-
-2. Google OAuth 리디렉션 URI:
-   ```
-   https://xn--ox6bo4n.com/api/auth/callback/google
-   ```
-
-### 옵션 B: 한글 도메인 사용
-1. Railway 환경 변수:
-   ```
-   NEXTAUTH_URL=https://청해.com
+   NEXTAUTH_URL=https://yourdomain.com
    ```
 
 2. Google OAuth 리디렉션 URI:
    ```
-   https://청해.com/api/auth/callback/google
-   https://xn--ox6bo4n.com/api/auth/callback/google
+   https://yourdomain.com/api/auth/callback/google
    ```
-   (둘 다 추가)
+
+3. SSL 인증서 설정 (Let's Encrypt 권장)
 
 ## 디버깅 체크리스트
 
-- [ ] Railway Custom Domain이 Active 상태인가?
-- [ ] SSL 인증서가 발급되었는가?
+- [ ] EC2 보안 그룹에서 포트 3000이 열려있는가?
+- [ ] PM2로 애플리케이션이 실행 중인가?
 - [ ] NEXTAUTH_URL이 접속 URL과 일치하는가?
 - [ ] Google OAuth에 정확한 URI가 등록되어 있는가?
 - [ ] 브라우저 캐시를 지웠는가?
+- [ ] 데이터베이스 연결이 정상적인가?
 
 ## 권장사항
 
-한글 도메인은 여러 문제를 일으킬 수 있으므로:
-1. 일단 Railway URL로 서비스 운영
-2. 나중에 영문 도메인 구매 고려 (예: pureocean.com)
+1. 일단 EC2 Public URL로 서비스 운영
+2. 나중에 도메인 연결 및 SSL 인증서 설정 고려
+3. 정기적인 백업 및 모니터링 설정

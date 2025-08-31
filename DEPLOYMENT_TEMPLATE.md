@@ -2,8 +2,8 @@
 
 ## 사전 준비사항
 
-### 1. Railway 계정
-- https://railway.app 에서 GitHub 계정으로 가입
+### 1. EC2 계정
+- https://ec2-domain.com 에서 GitHub 계정으로 가입
 - GitHub 저장소 연결 권한 부여
 
 ### 2. Google Cloud Console 설정
@@ -15,10 +15,10 @@
 - https://platform.openai.com 에서 API 키 생성
 - 사용량 한도 설정 권장
 
-## Railway 배포 단계
+## EC2 배포 단계
 
 ### 1. 새 프로젝트 생성
-1. Railway 대시보드에서 "New Project" 클릭
+1. EC2 대시보드에서 "New Project" 클릭
 2. "Deploy from GitHub repo" 선택
 3. `POProject` 저장소 선택
 
@@ -30,11 +30,11 @@
 
 ⚠️ **중요: 절대로 실제 값을 코드에 포함하지 마세요!**
 
-Railway 대시보드에서 Variables 탭으로 이동하여 다음 환경 변수 추가:
+EC2 대시보드에서 Variables 탭으로 이동하여 다음 환경 변수 추가:
 
 ```bash
 # NextAuth 설정
-NEXTAUTH_URL=https://your-app-name.up.railway.app
+NEXTAUTH_URL=https://your-app-name.up.ec2-domain.com
 NEXTAUTH_SECRET=생성한_시크릿_키
 
 # Google OAuth
@@ -54,7 +54,7 @@ openssl rand -base64 32
 ```
 
 ### 5. 배포 확인
-- Railway가 자동으로 빌드 및 배포 시작
+- EC2가 자동으로 빌드 및 배포 시작
 - 빌드 로그에서 오류 확인
 - 배포 완료 후 제공된 URL로 접속
 

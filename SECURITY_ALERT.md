@@ -7,13 +7,13 @@
 2. API 및 서비스 → 사용자 인증 정보
 3. 노출된 OAuth 2.0 클라이언트 찾기
 4. 새 클라이언트 시크릿 생성
-5. Railway 환경 변수 업데이트
+5. EC2 환경 변수 업데이트
 
 ### 2. OpenAI API 키 무효화 및 재생성
 1. [OpenAI API Keys](https://platform.openai.com/api-keys) 접속
 2. 노출된 키 무효화 (Revoke)
 3. 새 API 키 생성
-4. Railway 환경 변수 업데이트
+4. EC2 환경 변수 업데이트
 
 ### 3. 사용 내역 확인
 - Google Cloud Console에서 비정상적인 API 사용 확인
