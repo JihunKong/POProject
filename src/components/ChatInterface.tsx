@@ -1613,14 +1613,14 @@ function ChatInterfaceContent() {
             />
           )}
 
-          {/* History Sidebar */}
+          {/* History Sidebar - Right Side */}
           <div className={`
             fixed lg:absolute
-            ${showMobileMenu ? 'left-0' : '-left-full'}
-            ${showHistory ? 'lg:left-0' : 'lg:-left-80'}
+            ${showMobileMenu ? 'right-0' : '-right-full'}
+            ${showHistory ? 'lg:right-0' : 'lg:-right-80'}
             top-0 h-full w-80 bg-white shadow-xl
             transition-all duration-300 ease-in-out z-40
-            overflow-hidden border-r border-gray-200
+            overflow-hidden border-l border-gray-200
           `}>
         <div className="w-80 flex flex-col h-full">
           {/* 고정 헤더 */}
@@ -1776,7 +1776,7 @@ function ChatInterfaceContent() {
                     {showHistory ? (
                       <X className="w-4 h-4" />
                     ) : (
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4 rotate-180" />
                     )}
                   </button>
                 )}
