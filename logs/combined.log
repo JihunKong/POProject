@@ -81,3 +81,7 @@ Error: Could not find a production build in the '.next' directory. Try building 
     at setupFsCheck (/Users/jihunkong/POProject/node_modules/next/dist/server/lib/router-utils/filesystem.js:156:41)
     at async initialize (/Users/jihunkong/POProject/node_modules/next/dist/server/lib/router-server.js:112:23)
     at async NextCustomServer.prepare (/Users/jihunkong/POProject/node_modules/next/dist/server/next.js:287:28)
+2025-09-01 10:01:11 +09:00:  ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+2025-09-01 10:01:11 +09:00: 🚀 Socket.IO server initialized
+2025-09-01 10:01:11 +09:00: 🌐 Server ready on http://0.0.0.0:3000
+2025-09-01 10:01:11 +09:00: 🔌 WebSocket server ready on ws://0.0.0.0:3000

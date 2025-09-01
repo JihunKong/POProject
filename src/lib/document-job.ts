@@ -384,64 +384,38 @@ ${fullText.slice(0, 3000)}...
       });
     }
 
-    // 섹션별 피드백 생성
-    for (let idx = 0; idx < documentSections.length; idx++) {
-      const section = documentSections[idx];
-      
-      if (section.text.trim().length > 30) {
-        let sectionPrompt;
-        if (section.type === 'empty') {
-          sectionPrompt = `
-이것은 ${genre}의 "${section.title}" 섹션입니다. 현재 이 섹션은 작성되지 않았습니다.
+    // 핵심 개선점 2-3개만 생성 (섹션별 피드백 루프 제거)
+    const keyPointsPrompt = `
+문서를 전체적으로 분석한 결과, 가장 중요한 개선점 2가지를 제시해주세요.
+각 개선점은 1-2줄로 간결하게 작성하고, 가장 시급한 순서대로 제시해주세요.
 
-섹션 내용:
-${section.text}
+문서 내용:
+${fullText.slice(0, 2000)}
 
-이 섹션에 대해 다음과 같이 안내해주세요:
-1. "${section.title}" 섹션에서 작성해야 할 핵심 내용
-2. 단계별 작성 가이드라인과 예시
-3. 팀원들과 협력하여 작성하는 효과적인 방법
-4. 다음 단계와의 연결점
+다음 형식으로 작성해주세요:
+■ 개선점 1: (구체적인 내용)
+■ 개선점 2: (구체적인 내용)`;
 
-학생들이 체계적으로 이 섹션을 완성할 수 있도록 구체적인 도움을 주세요.`;
-        } else {
-          sectionPrompt = `
-이것은 ${genre}의 "${section.title}" 섹션입니다.
-${genre}의 구조적 원리에 따라 이 섹션을 평가해주세요.
+    const keyPointsResponse = await openai.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: keyPointsPrompt }
+      ],
+      max_tokens: 100,
+      temperature: 0.7
+    });
 
-${genre}의 구조: ${genreInfo.structure.join(', ')}
-
-분석할 내용:
-${section.text}
-
-위 "${section.title}" 섹션에 대해 다음 관점에서 피드백을 제공해주세요:
-1. 섹션 목적에 맞는 내용 구성 여부
-2. 구체적인 장점 2가지
-3. 개선이 필요한 부분과 구체적 방법
-4. 전체 문서 흐름에서의 역할과 연결성
-
-건설적이고 실행 가능한 조언을 해주세요.`;
-        }
-
-        const sectionResponse = await openai.chat.completions.create({
-          model: DEFAULT_MODEL,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: sectionPrompt }
-          ],
-          max_tokens: 600,
-          temperature: 0.7
-        });
-
-        const sectionFeedback = sectionResponse.choices[0].message.content || '';
-        
-        const insertPosition = section.type === 'empty' ? section.start : section.end;
-        feedbacks.push({
-          type: section.title,
-          content: sectionFeedback,
-          insert_at: insertPosition
-        });
-      }
+    const keyPointsFeedback = keyPointsResponse.choices[0].message.content || '';
+    
+    // 핵심 개선점을 문서 중간 위치에 추가
+    if (contentWithPositions.length > 1) {
+      const midPoint = Math.floor(contentWithPositions.length / 2);
+      feedbacks.push({
+        type: '핵심 개선점',
+        content: keyPointsFeedback,
+        insert_at: contentWithPositions[midPoint].start
+      });
     }
 
     return feedbacks;

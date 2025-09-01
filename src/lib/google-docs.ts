@@ -233,6 +233,13 @@ export async function getDocumentContent(docsService: docs_v1.Docs, documentId: 
     
     const content = doc.data.body?.content || [];
     
+    // 임시 버퍼로 작은 paragraph들을 병합
+    let currentSection = {
+      text: '',
+      start: -1,
+      end: -1
+    };
+    
     for (const element of content) {
       if (element.paragraph) {
         const paragraphText: string[] = [];
@@ -250,13 +257,45 @@ export async function getDocumentContent(docsService: docs_v1.Docs, documentId: 
         
         if (paragraphText.length > 0) {
           const fullText = paragraphText.join('');
-          contentWithPositions.push({
-            text: fullText,
-            start: startIndex,
-            end: endIndex
-          });
+          
+          // 헤더 패턴 체크 (새로운 섹션 시작)
+          const isHeader = /^(Step\s*\d+|단계\s*\d+|팀\s*정보|문제\s*발견|문제\s*분석|해결책\s*개발|실행\s*계획|기대\s*효과|발표\s*준비|성찰|\d+\.\s*)/i.test(fullText.trim());
+          
+          // 헤더이거나 충분히 긴 텍스트(100자 이상)인 경우 새 섹션 시작
+          if (isHeader || (currentSection.text.length > 100 && fullText.trim().length > 50)) {
+            // 이전 섹션 저장
+            if (currentSection.text && currentSection.start !== -1) {
+              contentWithPositions.push({
+                text: currentSection.text,
+                start: currentSection.start,
+                end: currentSection.end
+              });
+            }
+            // 새 섹션 시작
+            currentSection = {
+              text: fullText,
+              start: startIndex,
+              end: endIndex
+            };
+          } else {
+            // 현재 섹션에 병합
+            if (currentSection.start === -1) {
+              currentSection.start = startIndex;
+            }
+            currentSection.text += fullText;
+            currentSection.end = endIndex;
+          }
         }
       }
+    }
+    
+    // 마지막 섹션 저장
+    if (currentSection.text && currentSection.start !== -1) {
+      contentWithPositions.push({
+        text: currentSection.text,
+        start: currentSection.start,
+        end: currentSection.end
+      });
     }
     
     return { title, contentWithPositions };
