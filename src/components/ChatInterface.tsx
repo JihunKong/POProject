@@ -318,7 +318,8 @@ ${errorMessage}
   // 진행 중인지 판단 - 즉시 애니메이션 표시 포함
   const isProcessing = Boolean(
     showProgress || 
-    (currentJobId && (jobStatus?.status === 'PENDING' || jobStatus?.status === 'PROCESSING'))
+    currentJobId || // currentJobId가 있으면 일단 처리중으로 간주
+    (jobStatus && (jobStatus.status === 'PENDING' || jobStatus.status === 'PROCESSING'))
   );
   
   // 실제 데이터로 전역 상태 업데이트
@@ -393,14 +394,16 @@ const DocumentProgressIndicator = memo(function DocumentProgressIndicator({
   jobStatus,
   isFullScreen = false
 }: {
-  jobStatus: DocumentJobData;
+  jobStatus: DocumentJobData | null;
   isFullScreen?: boolean;
 }) {
-  const [animatedProgress, setAnimatedProgress] = useState(0);
+  // 초기 진행률을 5%로 설정 (0% 방지)
+  const [animatedProgress, setAnimatedProgress] = useState(5);
 
   // 부드러운 진행률 애니메이션
   useEffect(() => {
-    const targetProgress = jobStatus.progress || 0;
+    // jobStatus가 없거나 progress가 0이면 최소 5% 표시
+    const targetProgress = Math.max(jobStatus?.progress || 5, 5);
     const startProgress = animatedProgress;
     const difference = targetProgress - startProgress;
     const duration = 800; // 800ms 애니메이션
@@ -419,7 +422,7 @@ const DocumentProgressIndicator = memo(function DocumentProgressIndicator({
     }, duration / steps);
 
     return () => clearInterval(timer);
-  }, [jobStatus.progress, animatedProgress]);
+  }, [jobStatus?.progress, animatedProgress]);
 
   const getStepIcon = (stepName: keyof DocumentJobDetails, status?: 'pending' | 'completed' | 'failed') => {
     switch (status) {
@@ -451,6 +454,14 @@ const DocumentProgressIndicator = memo(function DocumentProgressIndicator({
     if (progress < 100) return "💬 문서에 의견을 예쁜 언어로 작성 중...";
     return "🎉 다 완료됐어요! 미션 완료!";
   };
+  
+  // jobStatus가 null인 경우 기본값 사용
+  const stepDetails = jobStatus?.stepDetails || {
+    documentAccess: 'pending',
+    contentAnalysis: 'pending',
+    feedbackGeneration: 'pending',
+    documentUpdate: 'pending'
+  } as DocumentJobDetails;
 
   const containerClass = isFullScreen 
     ? "p-2 sm:p-3 md:p-4 bg-gradient-to-br from-blue-50 via-white to-purple-50 rounded-xl border-2 border-blue-300 shadow-2xl backdrop-blur-lg w-full max-w-[90vw] max-h-[90vh] overflow-hidden flex flex-col"
@@ -525,7 +536,7 @@ const DocumentProgressIndicator = memo(function DocumentProgressIndicator({
         {/* 예상 시간 */}
         <div className={`bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border-2 border-yellow-300 ${isFullScreen ? 'p-2 sm:p-3' : 'p-3'}`}>
           <p className={`text-yellow-800 text-center font-bold ${isFullScreen ? 'text-xs sm:text-sm md:text-base' : 'text-sm'}`}>
-            ⏰ 약 {jobStatus.estimatedTimeRemaining}분 정도 더 기다려주세요
+            ⏰ 약 10분 정도 더 기다려주세요
             {isFullScreen && (
               <span className="block text-xs mt-1 opacity-80">화면을 닫지 말고 잠시만 기다려주세요!</span>
             )}
@@ -538,8 +549,8 @@ const DocumentProgressIndicator = memo(function DocumentProgressIndicator({
         <div className="space-y-3">
           <h4 className={`font-bold text-gray-800 mb-3 text-center ${isFullScreen ? 'text-base' : 'text-lg'}`}>🚀 지금 하고 있는 일</h4>
         {steps.map(({ key, label, desc }) => {
-          const stepStatus = jobStatus.stepDetails?.[key];
-          const isActive = jobStatus.currentStep?.includes(label.replace(/^.{2}\s/, ''));
+          const stepStatus = stepDetails[key];
+          const isActive = jobStatus?.currentStep?.includes(label.replace(/^.{2}\s/, '')) || false;
           return (
             <div key={key} className={`relative p-4 rounded-xl transition-all duration-500 transform ${
               isActive ? 'bg-gradient-to-r from-blue-100 to-purple-100 border-2 border-blue-300 shadow-lg scale-105 animate-bounce-gentle' : 
@@ -1591,11 +1602,30 @@ function ChatInterfaceContent() {
   return (
     <div className="flex h-full w-full bg-gradient-to-br from-blue-50 via-white to-cyan-50">
       {/* 전체 화면 문서 진행률 오버레이 */}
-      {globalProcessing && globalJobStatus && (
+      {globalProcessing && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center animate-fade-in">
           <div className="w-[90vw] max-w-md mx-2 animate-scale-in">
             <DocumentProgressIndicator 
-              jobStatus={globalJobStatus} 
+              jobStatus={globalJobStatus || {
+                // 기본 상태 객체 - jobStatus가 없을 때 사용
+                jobId: 'temp',
+                status: 'PROCESSING' as const,
+                progress: 5,
+                currentStep: '문서 처리 준비 중',
+                totalSteps: 4,
+                estimatedTimeRemaining: 10,
+                estimatedTotalTime: 10,
+                startedAt: new Date().toISOString(),
+                documentUrl: '',
+                genre: '',
+                stepDetails: {
+                  documentAccess: 'pending' as const,
+                  contentAnalysis: 'pending' as const,
+                  feedbackGeneration: 'pending' as const,
+                  documentUpdate: 'pending' as const,
+                },
+                commentsAdded: 0
+              }} 
               isFullScreen={true}
             />
           </div>

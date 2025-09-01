@@ -292,7 +292,7 @@ export class DocumentJobManager {
     }
   }
 
-  // AI 피드백 생성 (기존 로직 분리)
+  // AI 피드백 생성 - 섹션별 맥락적 피드백 시스템
   static async generateFeedbacks(
     genre: string,
     fullText: string,
@@ -308,7 +308,7 @@ export class DocumentJobManager {
     content: string;
     insert_at: number;
   }>> {
-    const feedbacks: Array<{
+    let feedbacks: Array<{
       type: string;
       content: string;
       insert_at: number;
@@ -316,30 +316,7 @@ export class DocumentJobManager {
 
     const genreInfo = GENRES[genre as keyof typeof GENRES];
 
-    // 전체 문서 평가
-    let overallPrompt;
-    if (isEmptyOrTemplate) {
-      overallPrompt = `
-다음은 ${genre} 템플릿입니다. 현재 대부분의 내용이 작성되지 않았습니다.
-
-문서 내용:
-${fullText.slice(0, 3000)}...
-
-아직 내용이 작성되지 않았습니다. 가장 먼저 작성해야 할 부분을 1-2줄로 안내해주세요.`;
-    } else {
-      overallPrompt = `
-다음은 ${genre}입니다. ${genre}의 일반적인 구조적 원리에 따라 평가해주세요.
-
-평가 기준:
-구조: ${genreInfo.structure.join(', ')}
-초점: ${genreInfo.criteria}
-
-문서 전체 내용:
-${fullText.slice(0, 3000)}...
-
-위 ${genre}에 대해 가장 중요한 개선점 한 가지를 1-2줄로 간단명료하게 제시해주세요.`;
-    }
-
+    // 시스템 프롬프트 - 교육적 가치 강화
     const systemPrompt = `당신은 완도고등학교 프로젝트의 전문 멘토입니다. 
           
 역할:
@@ -349,19 +326,257 @@ ${fullText.slice(0, 3000)}...
 
 피드백 원칙:
 1. 매우 간결하게 1-2줄로 핵심만 전달
-2. 가장 중요한 개선점 한 가지만 제시
-3. 구체적이고 실행 가능한 제안 중심
-
-평가 중점:
-- 가장 시급한 개선사항 한 가지
-- 즉시 실행 가능한 조언
+2. 구체적이고 실행 가능한 제안 중심
+3. 격려와 개선점을 균형있게 제시
+4. 학생의 현재 문서 내용을 구체적으로 언급
 
 중요한 형식 규칙:
 - 마크다운 문법을 사용하지 마세요 (**, *, #, \` 등 사용 금지)
 - 일반 텍스트로만 작성하세요
-- 강조가 필요한 부분은 "강조: 내용" 형태로 작성하세요
-- 목록은 "- 항목1", "- 항목2" 형태로 작성하세요
-- 제목은 "■ 제목:" 형태로 작성하세요`;
+- 강조가 필요한 부분은 "강조: 내용" 형태로 작성하세요`;
+
+    // 빈 문서인 경우 기본 가이드만 제공
+    if (isEmptyOrTemplate) {
+      const emptyDocPrompt = `
+학생이 ${genre} 작성을 시작하려고 합니다. 
+가장 먼저 작성해야 할 3가지 핵심 요소를 안내해주세요.
+각 요소는 1줄로 간단명료하게 설명하세요.`;
+
+      const response = await openai.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: emptyDocPrompt }
+        ],
+        max_tokens: 150,
+        temperature: 0.7
+      });
+
+      feedbacks.push({
+        type: '시작 가이드',
+        content: response.choices[0].message.content || '문서 작성을 시작해보세요!',
+        insert_at: contentWithPositions[0]?.start || 1
+      });
+      
+      return feedbacks;
+    }
+
+    // 1. 서론/도입부 피드백 (2-3개)
+    const introSections = documentSections.filter(s => 
+      s.title.includes('서론') || s.title.includes('도입') || 
+      s.title.includes('Step 1') || s.title.includes('문제 발견') ||
+      s.type === 'header' && documentSections.indexOf(s) < 2
+    );
+
+    if (introSections.length > 0 || contentWithPositions.length > 0) {
+      const introText = introSections.length > 0 
+        ? introSections.map(s => s.text).join('\n')
+        : contentWithPositions[0].text;
+      
+      const introPrompt = `
+다음은 ${genre}의 도입부입니다:
+${introText.slice(0, 500)}
+
+이 도입부에 대해 2가지 피드백을 제공하세요:
+1. 잘된 점 1가지 (격려)
+2. 개선할 점 1가지 (구체적 제안)
+
+각 피드백은 1-2줄로 작성하세요.`;
+
+      const introResponse = await openai.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: introPrompt }
+        ],
+        max_tokens: 100,
+        temperature: 0.7
+      });
+
+      const introFeedback = introResponse.choices[0].message.content || '';
+      const introLines = introFeedback.split('\n').filter(line => line.trim());
+      
+      // 격려 피드백
+      if (introLines[0]) {
+        feedbacks.push({
+          type: '💙 도입부 - 잘된 점',
+          content: introLines[0].replace(/^[0-9\.\-\s]+/, ''),
+          insert_at: contentWithPositions[0].start
+        });
+      }
+      
+      // 개선 피드백
+      if (introLines[1] && contentWithPositions.length > 0) {
+        feedbacks.push({
+          type: '🟡 도입부 - 개선 제안',
+          content: introLines[1].replace(/^[0-9\.\-\s]+/, ''),
+          insert_at: contentWithPositions[0].end - 1
+        });
+      }
+    }
+
+    // 2. 본론 섹션별 피드백 (4-6개)
+    const bodySections = documentSections.filter(s => 
+      s.type === 'content' || 
+      (s.title.includes('Step') && !s.title.includes('Step 1')) ||
+      s.title.includes('분석') || s.title.includes('개발') || 
+      s.title.includes('실행') || s.title.includes('방법')
+    );
+
+    // 본론이 없으면 중간 contentWithPositions 사용
+    const sectionsToAnalyze = bodySections.length > 0 
+      ? bodySections 
+      : contentWithPositions.slice(1, -1).map((c, i) => ({
+          title: `섹션 ${i + 2}`,
+          text: c.text,
+          start: c.start,
+          end: c.end,
+          type: 'content' as const
+        }));
+
+    // 최대 3개 섹션만 분석 (과도한 피드백 방지)
+    const selectedSections = sectionsToAnalyze.slice(0, 3);
+    
+    for (let i = 0; i < selectedSections.length; i++) {
+      const section = selectedSections[i];
+      const sectionText = section.text.slice(0, 400);
+      
+      // 빈 섹션 건너뛰기
+      if (sectionText.trim().length < 50) continue;
+      
+      const sectionPrompt = `
+다음은 ${genre}의 "${section.title}" 부분입니다:
+${sectionText}
+
+이 섹션에 대해 1-2가지 구체적인 피드백을 제공하세요:
+- 논리성, 근거 제시, 구체성 등을 평가
+- 개선 방법을 구체적으로 제시
+- 각 피드백은 1줄로 작성`;
+
+      const sectionResponse = await openai.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: sectionPrompt }
+        ],
+        max_tokens: 80,
+        temperature: 0.7
+      });
+
+      const sectionFeedback = sectionResponse.choices[0].message.content || '';
+      
+      // 섹션 시작 부분에 피드백 추가
+      feedbacks.push({
+        type: `📝 ${section.title}`,
+        content: sectionFeedback.trim(),
+        insert_at: section.start
+      });
+    }
+
+    // 3. 전환 및 연결성 피드백 (2-3개)
+    if (contentWithPositions.length > 3) {
+      // 섹션 간 전환 부분 찾기
+      const transitionPoints = [];
+      
+      for (let i = 1; i < Math.min(contentWithPositions.length - 1, 4); i++) {
+        const prevSection = contentWithPositions[i - 1];
+        const currentSection = contentWithPositions[i];
+        
+        // 주요 전환 지점 식별
+        if (prevSection.text.length > 100 && currentSection.text.length > 100) {
+          transitionPoints.push({
+            index: i,
+            position: currentSection.start,
+            prevText: prevSection.text.slice(-100),
+            currentText: currentSection.text.slice(0, 100)
+          });
+        }
+      }
+      
+      // 1-2개 전환점만 선택
+      const selectedTransitions = transitionPoints.slice(0, 2);
+      
+      for (const transition of selectedTransitions) {
+        const transitionPrompt = `
+이전 단락 끝: ${transition.prevText}
+다음 단락 시작: ${transition.currentText}
+
+두 단락 간의 연결성을 평가하고, 자연스러운 전환을 위한 제안을 1줄로 작성하세요.`;
+
+        const transitionResponse = await openai.chat.completions.create({
+          model: DEFAULT_MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: transitionPrompt }
+          ],
+          max_tokens: 50,
+          temperature: 0.7
+        });
+
+        feedbacks.push({
+          type: '🔗 연결성',
+          content: transitionResponse.choices[0].message.content || '',
+          insert_at: transition.position
+        });
+      }
+    }
+
+    // 4. 결론부 피드백 (2개)
+    const conclusionSections = documentSections.filter(s => 
+      s.title.includes('결론') || s.title.includes('성찰') || 
+      s.title.includes('기대 효과') || s.title.includes('마무리')
+    );
+
+    const lastSection = contentWithPositions[contentWithPositions.length - 1];
+    if (conclusionSections.length > 0 || lastSection) {
+      const conclusionText = conclusionSections.length > 0
+        ? conclusionSections.map(s => s.text).join('\n')
+        : lastSection.text;
+      
+      const conclusionPrompt = `
+다음은 ${genre}의 결론부입니다:
+${conclusionText.slice(0, 400)}
+
+결론부에 대해 2가지 피드백을 제공하세요:
+1. 요약과 종합의 효과성
+2. 시사점이나 향후 과제 제시 여부
+
+각 피드백은 1줄로 작성하세요.`;
+
+      const conclusionResponse = await openai.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: conclusionPrompt }
+        ],
+        max_tokens: 80,
+        temperature: 0.7
+      });
+
+      const conclusionFeedback = conclusionResponse.choices[0].message.content || '';
+      const conclusionLines = conclusionFeedback.split('\n').filter(line => line.trim());
+      
+      if (conclusionLines[0] && lastSection) {
+        feedbacks.push({
+          type: '✨ 결론 - 종합 평가',
+          content: conclusionLines[0].replace(/^[0-9\.\-\s]+/, ''),
+          insert_at: lastSection.start
+        });
+      }
+      
+      if (conclusionLines[1] && lastSection) {
+        feedbacks.push({
+          type: '🎯 결론 - 발전 방향',
+          content: conclusionLines[1].replace(/^[0-9\.\-\s]+/, ''),
+          insert_at: lastSection.end - 1
+        });
+      }
+    }
+
+    // 5. 전체 총평 (1개)
+    const overallPrompt = `
+${genre} 전체를 검토한 결과, 가장 중요한 핵심 메시지를 1-2줄로 전달하세요.
+학생에게 격려가 되면서도 발전 방향을 제시하는 내용으로 작성하세요.`;
 
     const overallResponse = await openai.chat.completions.create({
       model: DEFAULT_MODEL,
@@ -369,55 +584,53 @@ ${fullText.slice(0, 3000)}...
         { role: "system", content: systemPrompt },
         { role: "user", content: overallPrompt }
       ],
-      max_tokens: 150,
+      max_tokens: 60,
       temperature: 0.7
     });
 
-    const overallFeedback = overallResponse.choices[0].message.content || '';
-    
-    // 전체 평가를 문서 시작 부분에 추가
-    if (contentWithPositions.length > 0) {
-      feedbacks.push({
-        type: '전체 평가',
-        content: overallFeedback,
-        insert_at: contentWithPositions[0].start
-      });
-    }
-
-    // 핵심 개선점 2-3개만 생성 (섹션별 피드백 루프 제거)
-    const keyPointsPrompt = `
-문서를 전체적으로 분석한 결과, 가장 중요한 개선점 2가지를 제시해주세요.
-각 개선점은 1-2줄로 간결하게 작성하고, 가장 시급한 순서대로 제시해주세요.
-
-문서 내용:
-${fullText.slice(0, 2000)}
-
-다음 형식으로 작성해주세요:
-■ 개선점 1: (구체적인 내용)
-■ 개선점 2: (구체적인 내용)`;
-
-    const keyPointsResponse = await openai.chat.completions.create({
-      model: DEFAULT_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: keyPointsPrompt }
-      ],
-      max_tokens: 100,
-      temperature: 0.7
+    // 전체 총평은 문서 시작 부분에 추가
+    feedbacks.unshift({
+      type: '🌟 전체 총평',
+      content: overallResponse.choices[0].message.content || '좋은 시작입니다! 계속 발전시켜보세요.',
+      insert_at: contentWithPositions[0]?.start || 1
     });
 
-    const keyPointsFeedback = keyPointsResponse.choices[0].message.content || '';
-    
-    // 핵심 개선점을 문서 중간 위치에 추가
-    if (contentWithPositions.length > 1) {
-      const midPoint = Math.floor(contentWithPositions.length / 2);
-      feedbacks.push({
-        type: '핵심 개선점',
-        content: keyPointsFeedback,
-        insert_at: contentWithPositions[midPoint].start
+    // 피드백 수 조정 (8-12개 유지)
+    if (feedbacks.length < 8 && contentWithPositions.length > feedbacks.length) {
+      // 추가 피드백이 필요한 경우
+      const additionalPrompt = `
+문서에서 추가로 언급할 만한 개선점 ${8 - feedbacks.length}가지를 각각 1줄로 제시하세요.
+구체적이고 실행 가능한 제안 위주로 작성하세요.`;
+
+      const additionalResponse = await openai.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: additionalPrompt }
+        ],
+        max_tokens: 100,
+        temperature: 0.7
+      });
+
+      const additionalLines = additionalResponse.choices[0].message.content?.split('\n').filter(l => l.trim()) || [];
+      additionalLines.forEach((line, idx) => {
+        if (feedbacks.length < 12 && contentWithPositions[idx + 2]) {
+          feedbacks.push({
+            type: '💡 추가 제안',
+            content: line.replace(/^[0-9\.\-\s]+/, ''),
+            insert_at: contentWithPositions[idx + 2].start
+          });
+        }
       });
     }
 
+    // 피드백이 너무 많으면 우선순위에 따라 조정
+    if (feedbacks.length > 12) {
+      // 추가 제안 유형부터 제거
+      feedbacks = feedbacks.filter(f => !f.type.includes('추가 제안')).slice(0, 12);
+    }
+
+    console.log(`📊 Generated ${feedbacks.length} contextual feedbacks for document`);
     return feedbacks;
   }
 
