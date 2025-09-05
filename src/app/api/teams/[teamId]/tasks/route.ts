@@ -46,6 +46,11 @@ export async function GET(
           include: {
             user: true
           }
+        },
+        checklist: {
+          orderBy: {
+            order: 'asc'
+          }
         }
       },
       orderBy: [
@@ -73,7 +78,7 @@ export async function POST(
     }
 
     const { teamId } = await context.params;
-    const { title, description, phase, category, dueDate, assignedTo } = await req.json();
+    const { title, description, phase, category, dueDate, assignedTo, checklist } = await req.json();
 
     if (!title || !phase || !category) {
       return NextResponse.json({ 
@@ -116,12 +121,27 @@ export async function POST(
         createdBy: user.id,
         assignees: {
           connect: assignedTo?.map((id: string) => ({ id })) || []
-        }
+        },
+        // 체크리스트 아이템 생성
+        ...(checklist && checklist.length > 0 && {
+          checklist: {
+            create: checklist.map((item: { text: string; completed?: boolean }, index: number) => ({
+              text: item.text,
+              completed: item.completed || false,
+              order: index
+            }))
+          }
+        })
       },
       include: {
         assignees: {
           include: {
             user: true
+          }
+        },
+        checklist: {
+          orderBy: {
+            order: 'asc'
           }
         }
       }

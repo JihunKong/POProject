@@ -133,7 +133,61 @@ export function identifyDocumentSections(contentWithPositions: Array<{
     type: 'header' | 'content' | 'empty';
   }> = [];
 
+  // 목차 감지 헬퍼 함수
+  const isTableOfContents = (text: string): boolean => {
+    const tocIndicators = [
+      '목차', '차례', 'Table of Contents', 'Contents', 'INDEX',
+      '목 차', '차 례', '목  차', '차  례'
+    ];
+    
+    // 목차 키워드 체크
+    const hasExplicitTOC = tocIndicators.some(indicator => 
+      text.toUpperCase().includes(indicator.toUpperCase())
+    );
+    
+    // 목차 패턴 체크 (페이지 번호가 있는 라인들)
+    const lines = text.split('\n').filter(line => line.trim());
+    const tocPatterns = [
+      /^\d+\.\s+.+\s+\d+$/,  // "1. 서론 3"
+      /^제\s*\d+\s*[장절]\s+.+\s+\d+$/,  // "제1장 서론 3"
+      /^[IVX]+\.\s+.+\s+\d+$/,  // "I. Introduction 3"
+      /^.+\.{3,}\s*\d+$/,  // "서론........3"
+      /^.+\s{3,}\d+$/  // "서론     3"
+    ];
+    
+    const matchingLines = lines.filter(line => 
+      tocPatterns.some(pattern => pattern.test(line.trim()))
+    );
+    
+    return hasExplicitTOC || matchingLines.length > 2;
+  };
+
+  // 목차 영역 건너뛰기
+  let skipUntilIndex = -1;
   for (let i = 0; i < contentWithPositions.length; i++) {
+    const text = contentWithPositions[i].text;
+    
+    if (isTableOfContents(text)) {
+      console.log(`📑 목차 감지됨 (섹션 ${i}): 건너뜁니다.`);
+      skipUntilIndex = i;
+      
+      // 연속된 목차 페이지 체크
+      for (let j = i + 1; j < Math.min(i + 5, contentWithPositions.length); j++) {
+        if (isTableOfContents(contentWithPositions[j].text)) {
+          skipUntilIndex = j;
+        } else if (contentWithPositions[j].text.trim().length > 200) {
+          // 충분히 긴 텍스트면 본문 시작
+          break;
+        }
+      }
+    }
+  }
+
+  // 본문만 처리
+  const startIndex = skipUntilIndex >= 0 ? skipUntilIndex + 1 : 0;
+  console.log(`📚 identifyDocumentSections: ${contentWithPositions.length}개 중 ${startIndex}번째부터 처리`);
+
+  for (let i = startIndex; i < contentWithPositions.length; i++) {
     const item = contentWithPositions[i];
     const text = item.text.trim();
     
@@ -165,7 +219,7 @@ export function identifyDocumentSections(contentWithPositions: Array<{
       /^[_\s]*$/.test(meaningfulContent);
     
     sections.push({
-      title: isHeader ? sectionTitle : `섹션 ${i + 1}`,
+      title: isHeader ? sectionTitle : `섹션 ${i - startIndex + 1}`,
       start: item.start,
       end: item.end,
       text: text,
@@ -185,34 +239,39 @@ export function optimizeFeedbackPlacement(
     insert_at: number;
   }>
 ) {
+  // 내용이 있는 섹션만 필터링 (헤더와 빈 섹션 제외)
+  const contentSections = sections.filter(s => 
+    s.type === 'content' && s.text.length > 50
+  );
+  
+  if (contentSections.length === 0) {
+    console.log('⚠️ 내용 섹션이 없어 원본 피드백 위치 유지');
+    return feedbacks;
+  }
+  
+  console.log(`📍 피드백 배치: ${contentSections.length}개 내용 섹션에 ${feedbacks.length}개 피드백 분산`);
+  
   const optimizedFeedbacks = [...feedbacks];
   
-  // 섹션별로 피드백을 그룹화하고 적절한 위치에 배치
+  // 피드백을 내용 섹션에만 균등 분산
+  const feedbacksPerSection = Math.ceil(feedbacks.length / contentSections.length);
+  
   for (let i = 0; i < optimizedFeedbacks.length; i++) {
     const feedback = optimizedFeedbacks[i];
-    
-    // 해당 피드백이 어느 섹션에 속하는지 찾기
-    const targetSection = sections.find(section => 
-      feedback.insert_at >= section.start && feedback.insert_at <= section.end
+    const sectionIndex = Math.min(
+      Math.floor(i / feedbacksPerSection), 
+      contentSections.length - 1
     );
+    const targetSection = contentSections[sectionIndex];
     
     if (targetSection) {
-      // 빈 섹션의 경우 섹션 시작 부분에 배치
-      if (targetSection.type === 'empty') {
-        feedback.insert_at = targetSection.start;
-      } else {
-        // 내용이 있는 섹션의 경우 섹션 끝에 배치
-        feedback.insert_at = targetSection.end - 1;
-      }
+      // 섹션 중간 지점에 배치 (시작도 끝도 아닌)
+      const sectionLength = targetSection.end - targetSection.start;
+      const offset = Math.floor(sectionLength * 0.3); // 섹션의 30% 지점
+      feedback.insert_at = targetSection.start + offset;
       
-      // 섹션 타입에 따라 피드백 타입 조정
-      if (targetSection.type === 'header') {
-        feedback.type = `${targetSection.title} - 구조 평가`;
-      } else if (targetSection.type === 'empty') {
-        feedback.type = `${targetSection.title} - 작성 가이드`;
-      } else {
-        feedback.type = `${targetSection.title} - 내용 평가`;
-      }
+      // 피드백 타입 유지 (섹션 제목 추가 안함)
+      console.log(`  - 피드백 ${i + 1}: 섹션 ${sectionIndex + 1}에 배치`);
     }
   }
   

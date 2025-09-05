@@ -98,11 +98,13 @@ export default function HomePage() {
               return (
                 <div key={phase.day} className="text-center">
                   <div className="relative">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    {/* 아이콘에 z-index 추가하여 라인 위에 표시 */}
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 relative z-10">
                       <Icon className="w-8 h-8 text-blue-600" />
                     </div>
+                    {/* 라인 위치와 z-index 조정 */}
                     {index < projectPhases.length - 1 && (
-                      <div className="hidden md:block absolute top-8 left-16 w-full h-0.5 bg-gray-300" />
+                      <div className="hidden md:block absolute top-8 left-[50%] w-[calc(100%+2rem)] h-0.5 bg-gray-300 z-0" />
                     )}
                   </div>
                   <h3 className="font-semibold text-gray-900">{phase.day}</h3>

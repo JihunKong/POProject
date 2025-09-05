@@ -34,6 +34,16 @@ interface TeamMember {
   };
 }
 
+interface TaskChecklistItem {
+  id: string;
+  taskId: string;
+  text: string;
+  completed: boolean;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface Task {
   id: string;
   title: string;
@@ -44,6 +54,7 @@ interface Task {
   dueDate: string | null;
   assignedTo: string[];
   assignees: TeamMember[];
+  checklist?: TaskChecklistItem[];
   createdAt: string;
   updatedAt: string;
 }
@@ -163,19 +174,142 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
   };
 
   const updateTaskAssignees = async (taskId: string, assigneeIds: string[]) => {
+    console.log('Updating task assignees:', { taskId, assigneeIds, teamId });
     try {
-      await axios.patch(`/api/teams/${teamId}/tasks/${taskId}`, { assignees: assigneeIds });
-      await fetchTeamData(); // 전체 데이터 새로고침
+      const response = await axios.patch(`/api/teams/${teamId}/tasks/${taskId}`, { assignees: assigneeIds });
+      console.log('Update assignees response:', response.data);
       
-      // 선택된 작업 업데이트
-      if (selectedTask && selectedTask.id === taskId) {
-        const updatedTask = tasks.find(t => t.id === taskId);
-        if (updatedTask) {
+      if (response.data.task) {
+        // 즉시 UI 업데이트
+        const updatedTask = response.data.task;
+        
+        // 전체 tasks 목록 업데이트
+        setTasks(prevTasks => prevTasks.map(task => 
+          task.id === taskId ? updatedTask : task
+        ));
+        
+        // 선택된 작업이 현재 작업이면 업데이트
+        if (selectedTask && selectedTask.id === taskId) {
           setSelectedTask(updatedTask);
         }
       }
     } catch (error) {
       console.error('Failed to update task assignees:', error);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    if (!confirm('이 작업을 삭제하시겠습니까?')) {
+      return;
+    }
+    
+    try {
+      await axios.delete(`/api/teams/${teamId}/tasks/${taskId}`);
+      // 즉시 UI 업데이트
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+      // 상세보기 모달이 열려있으면 닫기
+      if (selectedTask?.id === taskId) {
+        setShowTaskDetail(false);
+        setSelectedTask(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { error?: string } } };
+        if (axiosError.response?.data?.error) {
+          alert(axiosError.response.data.error);
+        } else {
+          alert('작업 삭제에 실패했습니다.');
+        }
+      } else {
+        alert('작업 삭제에 실패했습니다.');
+      }
+    }
+  };
+
+  const updateTaskDueDate = async (taskId: string, dueDate: string | null) => {
+    console.log('Updating task due date:', { taskId, dueDate, teamId });
+    try {
+      const response = await axios.patch(`/api/teams/${teamId}/tasks/${taskId}`, { dueDate });
+      console.log('Update due date response:', response.data);
+      if (response.data.task) {
+        // 즉시 UI 업데이트
+        setTasks(prevTasks => prevTasks.map(task => 
+          task.id === taskId ? { ...task, dueDate } : task
+        ));
+        if (selectedTask?.id === taskId) {
+          setSelectedTask({ ...selectedTask, dueDate });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update task due date:', error);
+    }
+  };
+
+  const toggleChecklistItem = async (taskId: string, itemId: string, completed: boolean) => {
+    console.log('Toggling checklist item:', { taskId, itemId, completed, teamId });
+    try {
+      const response = await axios.patch(`/api/teams/${teamId}/tasks/${taskId}/checklist`, { 
+        itemId, 
+        completed 
+      });
+      console.log('Toggle response:', response.data);
+      
+      // 즉시 UI 업데이트
+      if (selectedTask?.id === taskId && selectedTask.checklist) {
+        const updatedChecklist = selectedTask.checklist.map(item =>
+          item.id === itemId ? { ...item, completed } : item
+        );
+        setSelectedTask({ ...selectedTask, checklist: updatedChecklist });
+        
+        // 전체 tasks 목록도 업데이트
+        setTasks(prevTasks => prevTasks.map(task =>
+          task.id === taskId ? { ...task, checklist: updatedChecklist } : task
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to toggle checklist item:', error);
+    }
+  };
+
+  const addChecklistItem = async (taskId: string, text: string) => {
+    try {
+      const response = await axios.post(`/api/teams/${teamId}/tasks/${taskId}/checklist`, { text });
+      if (response.data.checklistItem) {
+        // 즉시 UI 업데이트
+        if (selectedTask?.id === taskId) {
+          const updatedChecklist = [...(selectedTask.checklist || []), response.data.checklistItem];
+          setSelectedTask({ ...selectedTask, checklist: updatedChecklist });
+          
+          // 전체 tasks 목록도 업데이트
+          setTasks(prevTasks => prevTasks.map(task =>
+            task.id === taskId ? { ...task, checklist: updatedChecklist } : task
+          ));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to add checklist item:', error);
+    }
+  };
+
+  const deleteChecklistItem = async (taskId: string, itemId: string) => {
+    try {
+      await axios.delete(`/api/teams/${teamId}/tasks/${taskId}/checklist`, {
+        data: { itemId }
+      });
+      
+      // 즉시 UI 업데이트
+      if (selectedTask?.id === taskId && selectedTask.checklist) {
+        const updatedChecklist = selectedTask.checklist.filter(item => item.id !== itemId);
+        setSelectedTask({ ...selectedTask, checklist: updatedChecklist });
+        
+        // 전체 tasks 목록도 업데이트
+        setTasks(prevTasks => prevTasks.map(task =>
+          task.id === taskId ? { ...task, checklist: updatedChecklist } : task
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to delete checklist item:', error);
     }
   };
 
@@ -444,9 +578,21 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                               >
                                 <div className="flex items-start justify-between mb-2">
                                   <h4 className="font-medium text-gray-900">{task.title}</h4>
-                                  <span className="text-xs px-2 py-1 rounded bg-gray-100">
-                                    {CATEGORIES.find(c => c.id === task.category)?.icon}
-                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs px-2 py-1 rounded bg-gray-100">
+                                      {CATEGORIES.find(c => c.id === task.category)?.icon}
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteTask(task.id);
+                                      }}
+                                      className="p-1 hover:bg-red-100 rounded transition-colors group"
+                                      title="삭제"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-red-600" />
+                                    </button>
+                                  </div>
                                 </div>
                                 
                                 {task.description && (
@@ -525,6 +671,9 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     상태
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    작업
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -587,6 +736,18 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                         <option value="COMPLETED">완료</option>
                       </select>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteTask(task.id);
+                        }}
+                        className="p-1 hover:bg-red-100 rounded transition-colors group"
+                        title="삭제"
+                      >
+                        <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -621,14 +782,26 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                       >
                         <div className="flex items-start justify-between mb-2">
                           <h4 className="font-medium text-sm">{task.title}</h4>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            task.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                            task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {task.status === 'COMPLETED' ? '완료' :
-                             task.status === 'IN_PROGRESS' ? '진행중' : '대기'}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              task.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                              task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {task.status === 'COMPLETED' ? '완료' :
+                               task.status === 'IN_PROGRESS' ? '진행중' : '대기'}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteTask(task.id);
+                              }}
+                              className="p-1 hover:bg-red-100 rounded transition-colors group"
+                              title="삭제"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-red-600" />
+                            </button>
+                          </div>
                         </div>
                         
                         <div className="flex items-center justify-between text-xs text-gray-500">
@@ -831,9 +1004,16 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
 
               <div>
                 <h3 className="font-medium mb-2">마감일</h3>
-                <p className="text-gray-600">
-                  {selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString('ko-KR') : '미정'}
-                </p>
+                <input
+                  type="date"
+                  value={selectedTask.dueDate ? selectedTask.dueDate.split('T')[0] : ''}
+                  onChange={(e) => {
+                    const newDate = e.target.value || null;
+                    console.log('Date changed:', { taskId: selectedTask.id, newDate, oldDate: selectedTask.dueDate });
+                    updateTaskDueDate(selectedTask.id, newDate);
+                  }}
+                  className="px-3 py-2 border rounded-lg"
+                />
               </div>
             </div>
 
@@ -848,6 +1028,13 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                         type="checkbox"
                         checked={isAssigned}
                         onChange={(e) => {
+                          e.stopPropagation();
+                          console.log('Assignee checkbox clicked:', { 
+                            taskId: selectedTask.id, 
+                            memberId: member.user.id, 
+                            checked: e.target.checked,
+                            currentAssignees: selectedTask.assignees.map(a => a.user.id)
+                          });
                           if (e.target.checked) {
                             // 담당자 추가
                             updateTaskAssignees(selectedTask.id, [...selectedTask.assignees.map(a => a.user.id), member.user.id]);
@@ -875,6 +1062,67 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                     </label>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* 체크리스트 섹션 */}
+            <div className="mb-6">
+              <h3 className="font-medium mb-2">체크리스트</h3>
+              <div className="space-y-2">
+                {selectedTask.checklist && selectedTask.checklist.length > 0 ? (
+                  selectedTask.checklist.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg">
+                      <input
+                        type="checkbox"
+                        checked={item.completed}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          console.log('Checkbox clicked:', { taskId: selectedTask.id, itemId: item.id, newCompleted: !item.completed });
+                          toggleChecklistItem(selectedTask.id, item.id, !item.completed);
+                        }}
+                        className="rounded text-blue-600"
+                      />
+                      <span className={`flex-1 ${item.completed ? 'line-through text-gray-400' : ''}`}>
+                        {item.text}
+                      </span>
+                      <button
+                        onClick={() => deleteChecklistItem(selectedTask.id, item.id)}
+                        className="text-gray-400 hover:text-red-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">체크리스트 항목이 없습니다.</p>
+                )}
+                
+                {/* 새 체크리스트 아이템 추가 */}
+                <div className="flex gap-2 mt-3">
+                  <input
+                    type="text"
+                    placeholder="새 항목 추가..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                        addChecklistItem(selectedTask.id, e.currentTarget.value.trim());
+                        e.currentTarget.value = '';
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.querySelector('input[placeholder="새 항목 추가..."]') as HTMLInputElement;
+                      if (input && input.value.trim()) {
+                        addChecklistItem(selectedTask.id, input.value.trim());
+                        input.value = '';
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                  >
+                    추가
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1095,12 +1343,12 @@ export default function TeamDashboardClient({ teamId }: { teamId: string }) {
                               });
                               
                               if (response.data.task) {
-                                await fetchTeamData();
+                                // 즉시 tasks 상태 업데이트하여 화면에 반영
+                                setTasks(prevTasks => [...prevTasks, response.data.task]);
                                 setShowPredefinedTasks(false);
                                 setSelectedTaskCategory('');
-                                
-                                // 자동으로 AI 역할 추천 실행
-                                await getRoleRecommendations();
+                                // 팀 데이터는 백그라운드에서 업데이트
+                                fetchTeamData();
                               }
                             } catch (error) {
                               console.error('Failed to create task:', error);

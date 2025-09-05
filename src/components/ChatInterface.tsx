@@ -10,6 +10,8 @@ import ReactMarkdown from 'react-markdown';
 import { Message, Conversation } from '@/types';
 // Socket.IO imports removed - using HTTP only
 import { Lightbulb, Waves, Target, Bot, User, Plus, Send, Info, Menu, X, Clock, ChevronRight, MessageSquare, FileText, HelpCircle, CheckCircle, AlertCircle, Loader, Bell } from 'lucide-react';
+import ToastNotification from './ToastNotification';
+import BackgroundTaskIndicator from './BackgroundTaskIndicator';
 import { useDocumentFeedback } from '@/hooks/useDocumentFeedback';
 import { useNotifications } from '@/lib/notifications';
 
@@ -119,7 +121,9 @@ const DocumentFeedbackButton = memo(function DocumentFeedbackButton({
   addMessage,
   setIsLoading,
   setGlobalProcessing,
-  setGlobalJobStatus
+  setGlobalJobStatus,
+  setShowToast,
+  setBackgroundTasks
 }: {
   docUrl: string;
   docGenre: string;
@@ -128,9 +132,19 @@ const DocumentFeedbackButton = memo(function DocumentFeedbackButton({
   setIsLoading: (loading: boolean) => void;
   setGlobalProcessing?: (processing: boolean) => void;
   setGlobalJobStatus?: (status: DocumentJobData | null) => void;
+  setShowToast: (toast: { type: 'success' | 'error' | 'info'; title: string; message: string } | null) => void;
+  setBackgroundTasks: React.Dispatch<React.SetStateAction<{
+    id: string;
+    type: string;
+    status: 'processing' | 'completed' | 'failed';
+    startTime: Date;
+    documentUrl?: string;
+    genre?: string;
+    progress?: number;
+    error?: string;
+  }[]>>;
 }) {
-  // 즉시 애니메이션 표시를 위한 상태
-  const [showProgress, setShowProgress] = useState(false);
+  // No longer need local states - using props instead
   const {
     currentJobId,
     jobStatus,
@@ -158,15 +172,6 @@ const DocumentFeedbackButton = memo(function DocumentFeedbackButton({
   // 첨삭 작업 시작
   const handleStartFeedback = async () => {
     if (!docUrl || isSubmitting) return;
-
-    // 즉시 애니메이션 시작
-    setShowProgress(true);
-    
-    // 전역 상태에 즉시 표시
-    if (setGlobalProcessing && setGlobalJobStatus) {
-      setGlobalProcessing(true);
-      setGlobalJobStatus(mockJobStatus);
-    }
     
     try {
       console.log('🔍 Starting document feedback process');
@@ -192,11 +197,25 @@ const DocumentFeedbackButton = memo(function DocumentFeedbackButton({
       const response = await startFeedback(docGenre, docUrl);
       const responseTime = Date.now() - startTime;
       
-      // 작업 시작 성공시 계속 애니메이션 표시
-      console.log('✅ Job started, keeping animation visible');
-      
       console.log('✅ Document feedback job started successfully');
       console.log('📊 Job ID:', response.jobId);
+      
+      // 백그라운드 작업 목록에 추가
+      setBackgroundTasks(prev => [...prev, {
+        id: response.jobId,
+        type: 'document_feedback',
+        status: 'processing',
+        startTime: new Date(),
+        documentUrl: docUrl,
+        genre: docGenre
+      }]);
+      
+      // 성공 토스트 알림 표시
+      setShowToast({
+        type: 'success',
+        title: '문서 분석을 시작했습니다!',
+        message: '10분 내로 피드백을 추가해드릴게요. 다른 작업을 계속하셔도 좋아요!'
+      });
 
     } catch (error) {
       console.error('❌ FAILED to start feedback job:', error);
@@ -234,22 +253,18 @@ ${errorMessage}
       };
       addMessage(errorMsg);
       
-      // 에러 발생시 애니메이션 중지
-      setShowProgress(false);
-      if (setGlobalProcessing) {
-        setGlobalProcessing(false);
-      }
+      // 에러 토스트 알림
+      setShowToast({
+        type: 'error',
+        title: '문제가 발생했습니다',
+        message: errorMessage
+      });
     }
   };
 
   // 완료 메시지 추가 및 브라우저 알림 (한 번만 실행)
   useEffect(() => {
     if (jobStatus?.status === 'COMPLETED' && jobStatus.successMessage) {
-      // 완료시 애니메이션 중지
-      setShowProgress(false);
-      if (setGlobalProcessing) {
-        setGlobalProcessing(false);
-      }
       const successMessage: Message = {
         id: `completion_${jobStatus.jobId}`,
         role: 'assistant',
@@ -263,26 +278,51 @@ ${errorMessage}
       const docLink = `https://docs.google.com/document/d/${jobStatus.jobId.split('-')[0]}/edit`;
       notifyDocumentCompleted(documentTitle, docLink);
       
-      // 완료 메시지 표시 후 자동으로 창 닫기
+      // 백그라운드 작업 상태 업데이트
+      setBackgroundTasks(prev => prev.map(task => 
+        task.id === jobStatus.jobId 
+          ? { ...task, status: 'completed' }
+          : task
+      ));
+      
+      // 완료 토스트 알림
+      setShowToast({
+        type: 'success',
+        title: '피드백이 완료되었습니다!',
+        message: '문서를 확인해보세요. 피드백이 추가되었습니다.'
+      });
+      
+      // 상태 정리
       setTimeout(() => {
-        // 완료 팝업 메시지
-        alert('✅ 문서 첨삭이 완료되었습니다!\n\n구글 문서에서 댓글을 확인해보세요.');
-        
-        // 상태 정리 및 창 닫기
         resetJob();
         setIsLoading(false);
-        if (setGlobalProcessing) {
-          setGlobalProcessing(false);
-        }
-      }, 3000); // 3초 후 자동 닫기
+      }, 5000);
     }
   }, [jobStatus?.status, jobStatus?.successMessage, addMessage, resetJob, setIsLoading, jobStatus?.jobId, jobStatus?.documentUrl, notifyDocumentCompleted]);
+  
+  // 작업 실패시 처리
+  useEffect(() => {
+    if (jobStatus?.status === 'FAILED') {
+      // 백그라운드 작업 상태 업데이트
+      setBackgroundTasks(prev => prev.map(task => 
+        task.id === currentJobId 
+          ? { ...task, status: 'failed' as const, error: jobStatus.error || undefined }
+          : task
+      ));
+      
+      // 실패 토스트 알림
+      setShowToast({
+        type: 'error',
+        title: '처리 실패',
+        message: jobStatus.error || '문서 처리 중 오류가 발생했습니다.'
+      });
+    }
+  }, [jobStatus?.status, currentJobId]);
 
   // 실패 메시지 추가 및 브라우저 알림
   useEffect(() => {
     if (jobStatus?.status === 'FAILED') {
       // 실패시 애니메이션 중지
-      setShowProgress(false);
       if (setGlobalProcessing) {
         setGlobalProcessing(false);
       }
@@ -317,7 +357,6 @@ ${errorMessage}
 
   // 진행 중인지 판단 - 즉시 애니메이션 표시 포함
   const isProcessing = Boolean(
-    showProgress || 
     currentJobId || // currentJobId가 있으면 일단 처리중으로 간주
     (jobStatus && (jobStatus.status === 'PENDING' || jobStatus.status === 'PROCESSING'))
   );
@@ -333,17 +372,17 @@ ${errorMessage}
   const mockJobStatus: DocumentJobData = {
     jobId: 'mock-' + Date.now(),
     status: 'PROCESSING',
-    progress: showProgress && !jobStatus ? 15 : jobStatus?.progress || 0,
-    currentStep: showProgress && !jobStatus ? '문서 읽기 시작' : jobStatus?.currentStep || null,
+    progress: !jobStatus ? 15 : jobStatus?.progress || 0,
+    currentStep: !jobStatus ? '문서 읽기 시작' : jobStatus?.currentStep || null,
     totalSteps: 4,
-    estimatedTimeRemaining: showProgress && !jobStatus ? 8 : jobStatus?.estimatedTimeRemaining || 5,
+    estimatedTimeRemaining: !jobStatus ? 8 : jobStatus?.estimatedTimeRemaining || 5,
     estimatedTotalTime: 10,
     error: null,
     startedAt: new Date().toISOString(),
     completedAt: null,
     commentsAdded: 0,
     stepDetails: {
-      documentAccess: showProgress && !jobStatus ? 'pending' : jobStatus?.stepDetails?.documentAccess || 'pending',
+      documentAccess: !jobStatus ? 'pending' : jobStatus?.stepDetails?.documentAccess || 'pending',
       contentAnalysis: 'pending',
       feedbackGeneration: 'pending', 
       documentUpdate: 'pending'
@@ -946,7 +985,9 @@ const DocsTab = memo(function DocsTab({
   streamingMessage,
   isStreaming,
   setGlobalProcessing,
-  setGlobalJobStatus
+  setGlobalJobStatus,
+  setShowToast,
+  setBackgroundTasks
 }: {
   messages: Message[];
   isLoading: boolean;
@@ -960,6 +1001,17 @@ const DocsTab = memo(function DocsTab({
   isStreaming?: boolean;
   setGlobalProcessing?: (processing: boolean) => void;
   setGlobalJobStatus?: (status: DocumentJobData | null) => void;
+  setShowToast: (toast: { type: 'success' | 'error' | 'info'; title: string; message: string } | null) => void;
+  setBackgroundTasks: React.Dispatch<React.SetStateAction<{
+    id: string;
+    type: string;
+    status: 'processing' | 'completed' | 'failed';
+    startTime: Date;
+    documentUrl?: string;
+    genre?: string;
+    progress?: number;
+    error?: string;
+  }[]>>;
 }) {
   if (messages.length === 0) {
     return (
@@ -1019,6 +1071,8 @@ const DocsTab = memo(function DocsTab({
                   setIsLoading={setIsLoading}
                   setGlobalProcessing={setGlobalProcessing}
                   setGlobalJobStatus={setGlobalJobStatus}
+                  setShowToast={setShowToast}
+                  setBackgroundTasks={setBackgroundTasks}
                 />
               </div>
             </div>
@@ -1199,6 +1253,25 @@ function ChatInterfaceContent() {
   // 전체 화면 문서 진행률 표시 상태
   const [globalProcessing, setGlobalProcessing] = useState(false);
   const [globalJobStatus, setGlobalJobStatus] = useState<DocumentJobData | null>(null);
+  
+  // 토스트 알림 상태
+  const [showToast, setShowToast] = useState<{
+    type: 'success' | 'error' | 'info';
+    title: string;
+    message: string;
+  } | null>(null);
+  
+  // 백그라운드 작업 상태
+  const [backgroundTasks, setBackgroundTasks] = useState<{
+    id: string;
+    type: string;
+    status: 'processing' | 'completed' | 'failed';
+    startTime: Date;
+    documentUrl?: string;
+    genre?: string;
+    progress?: number;
+    error?: string;
+  }[]>([]);
   
   // 2탭 구조 상태 관리 (코칭은 서브모드로)
   const [chatStates, setChatStates] = useState<Record<ChatMode, ChatState>>({
@@ -1601,36 +1674,25 @@ function ChatInterfaceContent() {
 
   return (
     <div className="flex h-full w-full bg-gradient-to-br from-blue-50 via-white to-cyan-50">
-      {/* 전체 화면 문서 진행률 오버레이 */}
-      {globalProcessing && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center animate-fade-in">
-          <div className="w-[90vw] max-w-md mx-2 animate-scale-in">
-            <DocumentProgressIndicator 
-              jobStatus={globalJobStatus || {
-                // 기본 상태 객체 - jobStatus가 없을 때 사용
-                jobId: 'temp',
-                status: 'PROCESSING' as const,
-                progress: 5,
-                currentStep: '문서 처리 준비 중',
-                totalSteps: 4,
-                estimatedTimeRemaining: 10,
-                estimatedTotalTime: 10,
-                startedAt: new Date().toISOString(),
-                documentUrl: '',
-                genre: '',
-                stepDetails: {
-                  documentAccess: 'pending' as const,
-                  contentAnalysis: 'pending' as const,
-                  feedbackGeneration: 'pending' as const,
-                  documentUpdate: 'pending' as const,
-                },
-                commentsAdded: 0
-              }} 
-              isFullScreen={true}
-            />
-          </div>
-        </div>
+      {/* 토스트 알림 */}
+      {showToast && (
+        <ToastNotification
+          type={showToast.type}
+          title={showToast.title}
+          message={showToast.message}
+          duration={5000}
+          onClose={() => setShowToast(null)}
+        />
       )}
+      
+      {/* 백그라운드 작업 표시기 */}
+      <BackgroundTaskIndicator
+        tasks={backgroundTasks}
+        onTaskClick={(taskId) => {
+          // 작업 클릭시 처리 (선택사항)
+          console.log('Task clicked:', taskId);
+        }}
+      />
 
       {/* Mobile Menu Button */}
       <button
@@ -1860,6 +1922,8 @@ function ChatInterfaceContent() {
                 setIsStreaming={setIsStreaming}
                 setGlobalProcessing={setGlobalProcessing}
                 setGlobalJobStatus={setGlobalJobStatus}
+                setShowToast={setShowToast}
+                setBackgroundTasks={setBackgroundTasks}
               />
             )}
           </div>
@@ -1934,7 +1998,9 @@ const TabContainer = memo(function TabContainer({
   addMessage,
   setIsStreaming,
   setGlobalProcessing,
-  setGlobalJobStatus
+  setGlobalJobStatus,
+  setShowToast,
+  setBackgroundTasks
 }: {
   chatMode: ChatMode;
   messages: Message[];
@@ -1952,6 +2018,17 @@ const TabContainer = memo(function TabContainer({
   setIsStreaming: (loading: boolean) => void;
   setGlobalProcessing: (processing: boolean) => void;
   setGlobalJobStatus: (status: DocumentJobData | null) => void;
+  setShowToast: (toast: { type: 'success' | 'error' | 'info'; title: string; message: string } | null) => void;
+  setBackgroundTasks: React.Dispatch<React.SetStateAction<{
+    id: string;
+    type: string;
+    status: 'processing' | 'completed' | 'failed';
+    startTime: Date;
+    documentUrl?: string;
+    genre?: string;
+    progress?: number;
+    error?: string;
+  }[]>>;
 }) {
   // 탭 변경 시에만 DOM 정리
   useLayoutEffect(() => {
@@ -1993,6 +2070,8 @@ const TabContainer = memo(function TabContainer({
             isStreaming={isStreaming}
             setGlobalProcessing={setGlobalProcessing}
             setGlobalJobStatus={setGlobalJobStatus}
+            setShowToast={setShowToast}
+            setBackgroundTasks={setBackgroundTasks}
           />
         </div>
       )}

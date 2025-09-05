@@ -84,6 +84,11 @@ export async function PATCH(
           include: {
             user: true
           }
+        },
+        checklist: {
+          orderBy: {
+            order: 'asc'
+          }
         }
       }
     });
@@ -125,9 +130,12 @@ export async function DELETE(
       }
     });
 
-    if (!teamMember || teamMember.role !== 'leader') {
-      return NextResponse.json({ error: 'Only team leader can delete tasks' }, { status: 403 });
+    if (!teamMember) {
+      return NextResponse.json({ error: 'Not a team member' }, { status: 403 });
     }
+    
+    // 팀 리더이거나 팀 멤버인 경우 삭제 가능
+    // 추가로 작업 생성자 확인 로직을 넣고 싶다면 Task 스키마에 createdBy 필드를 추가해야 함
 
     // 작업 삭제
     await prisma.task.delete({

@@ -14,6 +14,8 @@ import {
   GENRES
 } from '@/lib/google-docs';
 import { openai, DEFAULT_MODEL } from '@/lib/openai';
+import { DocumentAnalyzer } from './document-analyzer';
+import { FeedbackGenerator } from './feedback-generator';
 
 export interface DocumentJobDetails {
   documentAccess: 'pending' | 'completed' | 'failed';
@@ -207,8 +209,23 @@ export class DocumentJobManager {
       const isEmptyOrTemplate = meaningfulContent.length < 100 || 
         meaningfulContent.includes('_______________________________');
 
-      // Step 2: 문서 섹션 분석
+      // Step 2: 문서 섹션 분석 (목차 감지 및 제외)
       const documentSections = identifyDocumentSections(contentWithPositions);
+      
+      // 목차 감지 로깅
+      const tocSections = contentWithPositions.filter((item, idx) => {
+        const text = item.text;
+        const isTOC = text.includes('목차') || text.includes('차례') || 
+                     text.includes('Table of Contents') || text.includes('Contents');
+        if (isTOC) {
+          console.log(`📑 목차 감지됨 (섹션 ${idx}): ${text.slice(0, 50)}...`);
+        }
+        return isTOC;
+      });
+      
+      if (tocSections.length > 0) {
+        console.log(`⚠️ 목차 ${tocSections.length}개 섹션 발견, 본문만 분석합니다.`);
+      }
       
       await DocumentJobManager.updateJobStatus(jobId, {
         progress: 50,
@@ -219,7 +236,7 @@ export class DocumentJobManager {
         }
       });
 
-      // Step 3: AI 피드백 생성
+      // Step 3: AI 피드백 생성 (목차 제외한 본문만 대상)
       const feedbacks = await DocumentJobManager.generateFeedbacks(
         job.genre, 
         fullText, 
@@ -292,7 +309,7 @@ export class DocumentJobManager {
     }
   }
 
-  // AI 피드백 생성 - 섹션별 맥락적 피드백 시스템
+  // AI 피드백 생성 - 전체 문서 분석 후 전략적 피드백 생성
   static async generateFeedbacks(
     genre: string,
     fullText: string,
@@ -308,37 +325,15 @@ export class DocumentJobManager {
     content: string;
     insert_at: number;
   }>> {
-    let feedbacks: Array<{
-      type: string;
-      content: string;
-      insert_at: number;
-    }> = [];
-
-    const genreInfo = GENRES[genre as keyof typeof GENRES];
-
-    // 시스템 프롬프트 - 교육적 가치 강화
-    const systemPrompt = `당신은 완도고등학교 프로젝트의 전문 멘토입니다. 
-          
-역할:
-- 2학년 학생들의 다양한 주제 프로젝트 워크시트 검토
-- 7단계 프로젝트 과정에 따른 체계적 피드백 제공
-- SDGs(지속가능발전목표) 전체를 아우르는 융합적 사고 유도
-
-피드백 원칙:
-1. 매우 간결하게 1-2줄로 핵심만 전달
-2. 구체적이고 실행 가능한 제안 중심
-3. 격려와 개선점을 균형있게 제시
-4. 학생의 현재 문서 내용을 구체적으로 언급
-
-중요한 형식 규칙:
-- 마크다운 문법을 사용하지 마세요 (**, *, #, \` 등 사용 금지)
-- 일반 텍스트로만 작성하세요
-- 강조가 필요한 부분은 "강조: 내용" 형태로 작성하세요`;
-
-    // 빈 문서인 경우 기본 가이드만 제공
+    console.log('🔍 Starting intelligent document analysis...');
+    
+    // 빈 문서 체크
     if (isEmptyOrTemplate) {
-      const emptyDocPrompt = `
-학생이 ${genre} 작성을 시작하려고 합니다. 
+      // 빈 문서에 대한 기본 가이드 제공
+      const systemPrompt = `당신은 완도고등학교 프로젝트의 전문 멘토입니다.
+학생에게 ${genre} 작성을 시작하는 방법을 안내하세요.`;
+      
+      const emptyDocPrompt = `학생이 ${genre} 작성을 시작하려고 합니다. 
 가장 먼저 작성해야 할 3가지 핵심 요소를 안내해주세요.
 각 요소는 1줄로 간단명료하게 설명하세요.`;
 
@@ -348,289 +343,40 @@ export class DocumentJobManager {
           { role: "system", content: systemPrompt },
           { role: "user", content: emptyDocPrompt }
         ],
-        max_tokens: 150,
+        max_tokens: 200,
         temperature: 0.7
       });
 
-      feedbacks.push({
-        type: '시작 가이드',
+      return [{
+        type: '🚀 시작 가이드',
         content: response.choices[0].message.content || '문서 작성을 시작해보세요!',
         insert_at: contentWithPositions[0]?.start || 1
-      });
-      
-      return feedbacks;
+      }];
     }
-
-    // 1. 서론/도입부 피드백 (2-3개)
-    const introSections = documentSections.filter(s => 
-      s.title.includes('서론') || s.title.includes('도입') || 
-      s.title.includes('Step 1') || s.title.includes('문제 발견') ||
-      s.type === 'header' && documentSections.indexOf(s) < 2
-    );
-
-    if (introSections.length > 0 || contentWithPositions.length > 0) {
-      const introText = introSections.length > 0 
-        ? introSections.map(s => s.text).join('\n')
-        : contentWithPositions[0].text;
-      
-      const introPrompt = `
-다음은 ${genre}의 도입부입니다:
-${introText.slice(0, 500)}
-
-이 도입부에 대해 2가지 피드백을 제공하세요:
-1. 잘된 점 1가지 (격려)
-2. 개선할 점 1가지 (구체적 제안)
-
-각 피드백은 1-2줄로 작성하세요.`;
-
-      const introResponse = await openai.chat.completions.create({
-        model: DEFAULT_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: introPrompt }
-        ],
-        max_tokens: 100,
-        temperature: 0.7
-      });
-
-      const introFeedback = introResponse.choices[0].message.content || '';
-      const introLines = introFeedback.split('\n').filter(line => line.trim());
-      
-      // 격려 피드백
-      if (introLines[0]) {
-        feedbacks.push({
-          type: '💙 도입부 - 잘된 점',
-          content: introLines[0].replace(/^[0-9\.\-\s]+/, ''),
-          insert_at: contentWithPositions[0].start
-        });
-      }
-      
-      // 개선 피드백
-      if (introLines[1] && contentWithPositions.length > 0) {
-        feedbacks.push({
-          type: '🟡 도입부 - 개선 제안',
-          content: introLines[1].replace(/^[0-9\.\-\s]+/, ''),
-          insert_at: contentWithPositions[0].end - 1
-        });
-      }
-    }
-
-    // 2. 본론 섹션별 피드백 (4-6개)
-    const bodySections = documentSections.filter(s => 
-      s.type === 'content' || 
-      (s.title.includes('Step') && !s.title.includes('Step 1')) ||
-      s.title.includes('분석') || s.title.includes('개발') || 
-      s.title.includes('실행') || s.title.includes('방법')
-    );
-
-    // 본론이 없으면 중간 contentWithPositions 사용
-    const sectionsToAnalyze = bodySections.length > 0 
-      ? bodySections 
-      : contentWithPositions.slice(1, -1).map((c, i) => ({
-          title: `섹션 ${i + 2}`,
-          text: c.text,
-          start: c.start,
-          end: c.end,
-          type: 'content' as const
-        }));
-
-    // 최대 3개 섹션만 분석 (과도한 피드백 방지)
-    const selectedSections = sectionsToAnalyze.slice(0, 3);
     
-    for (let i = 0; i < selectedSections.length; i++) {
-      const section = selectedSections[i];
-      const sectionText = section.text.slice(0, 400);
-      
-      // 빈 섹션 건너뛰기
-      if (sectionText.trim().length < 50) continue;
-      
-      const sectionPrompt = `
-다음은 ${genre}의 "${section.title}" 부분입니다:
-${sectionText}
-
-이 섹션에 대해 1-2가지 구체적인 피드백을 제공하세요:
-- 논리성, 근거 제시, 구체성 등을 평가
-- 개선 방법을 구체적으로 제시
-- 각 피드백은 1줄로 작성`;
-
-      const sectionResponse = await openai.chat.completions.create({
-        model: DEFAULT_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: sectionPrompt }
-        ],
-        max_tokens: 80,
-        temperature: 0.7
-      });
-
-      const sectionFeedback = sectionResponse.choices[0].message.content || '';
-      
-      // 섹션 시작 부분에 피드백 추가
-      feedbacks.push({
-        type: `📝 ${section.title}`,
-        content: sectionFeedback.trim(),
-        insert_at: section.start
-      });
-    }
-
-    // 3. 전환 및 연결성 피드백 (2-3개)
-    if (contentWithPositions.length > 3) {
-      // 섹션 간 전환 부분 찾기
-      const transitionPoints = [];
-      
-      for (let i = 1; i < Math.min(contentWithPositions.length - 1, 4); i++) {
-        const prevSection = contentWithPositions[i - 1];
-        const currentSection = contentWithPositions[i];
-        
-        // 주요 전환 지점 식별
-        if (prevSection.text.length > 100 && currentSection.text.length > 100) {
-          transitionPoints.push({
-            index: i,
-            position: currentSection.start,
-            prevText: prevSection.text.slice(-100),
-            currentText: currentSection.text.slice(0, 100)
-          });
-        }
-      }
-      
-      // 1-2개 전환점만 선택
-      const selectedTransitions = transitionPoints.slice(0, 2);
-      
-      for (const transition of selectedTransitions) {
-        const transitionPrompt = `
-이전 단락 끝: ${transition.prevText}
-다음 단락 시작: ${transition.currentText}
-
-두 단락 간의 연결성을 평가하고, 자연스러운 전환을 위한 제안을 1줄로 작성하세요.`;
-
-        const transitionResponse = await openai.chat.completions.create({
-          model: DEFAULT_MODEL,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: transitionPrompt }
-          ],
-          max_tokens: 50,
-          temperature: 0.7
-        });
-
-        feedbacks.push({
-          type: '🔗 연결성',
-          content: transitionResponse.choices[0].message.content || '',
-          insert_at: transition.position
-        });
-      }
-    }
-
-    // 4. 결론부 피드백 (2개)
-    const conclusionSections = documentSections.filter(s => 
-      s.title.includes('결론') || s.title.includes('성찰') || 
-      s.title.includes('기대 효과') || s.title.includes('마무리')
-    );
-
-    const lastSection = contentWithPositions[contentWithPositions.length - 1];
-    if (conclusionSections.length > 0 || lastSection) {
-      const conclusionText = conclusionSections.length > 0
-        ? conclusionSections.map(s => s.text).join('\n')
-        : lastSection.text;
-      
-      const conclusionPrompt = `
-다음은 ${genre}의 결론부입니다:
-${conclusionText.slice(0, 400)}
-
-결론부에 대해 2가지 피드백을 제공하세요:
-1. 요약과 종합의 효과성
-2. 시사점이나 향후 과제 제시 여부
-
-각 피드백은 1줄로 작성하세요.`;
-
-      const conclusionResponse = await openai.chat.completions.create({
-        model: DEFAULT_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: conclusionPrompt }
-        ],
-        max_tokens: 80,
-        temperature: 0.7
-      });
-
-      const conclusionFeedback = conclusionResponse.choices[0].message.content || '';
-      const conclusionLines = conclusionFeedback.split('\n').filter(line => line.trim());
-      
-      if (conclusionLines[0] && lastSection) {
-        feedbacks.push({
-          type: '✨ 결론 - 종합 평가',
-          content: conclusionLines[0].replace(/^[0-9\.\-\s]+/, ''),
-          insert_at: lastSection.start
-        });
-      }
-      
-      if (conclusionLines[1] && lastSection) {
-        feedbacks.push({
-          type: '🎯 결론 - 발전 방향',
-          content: conclusionLines[1].replace(/^[0-9\.\-\s]+/, ''),
-          insert_at: lastSection.end - 1
-        });
-      }
-    }
-
-    // 5. 전체 총평 (1개)
-    const overallPrompt = `
-${genre} 전체를 검토한 결과, 가장 중요한 핵심 메시지를 1-2줄로 전달하세요.
-학생에게 격려가 되면서도 발전 방향을 제시하는 내용으로 작성하세요.`;
-
-    const overallResponse = await openai.chat.completions.create({
-      model: DEFAULT_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: overallPrompt }
-      ],
-      max_tokens: 60,
-      temperature: 0.7
-    });
-
-    // 전체 총평은 문서 시작 부분에 추가
-    feedbacks.unshift({
-      type: '🌟 전체 총평',
-      content: overallResponse.choices[0].message.content || '좋은 시작입니다! 계속 발전시켜보세요.',
-      insert_at: contentWithPositions[0]?.start || 1
-    });
-
-    // 피드백 수 조정 (8-12개 유지)
-    if (feedbacks.length < 8 && contentWithPositions.length > feedbacks.length) {
-      // 추가 피드백이 필요한 경우
-      const additionalPrompt = `
-문서에서 추가로 언급할 만한 개선점 ${8 - feedbacks.length}가지를 각각 1줄로 제시하세요.
-구체적이고 실행 가능한 제안 위주로 작성하세요.`;
-
-      const additionalResponse = await openai.chat.completions.create({
-        model: DEFAULT_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: additionalPrompt }
-        ],
-        max_tokens: 100,
-        temperature: 0.7
-      });
-
-      const additionalLines = additionalResponse.choices[0].message.content?.split('\n').filter(l => l.trim()) || [];
-      additionalLines.forEach((line, idx) => {
-        if (feedbacks.length < 12 && contentWithPositions[idx + 2]) {
-          feedbacks.push({
-            type: '💡 추가 제안',
-            content: line.replace(/^[0-9\.\-\s]+/, ''),
-            insert_at: contentWithPositions[idx + 2].start
-          });
-        }
-      });
-    }
-
-    // 피드백이 너무 많으면 우선순위에 따라 조정
-    if (feedbacks.length > 12) {
-      // 추가 제안 유형부터 제거
-      feedbacks = feedbacks.filter(f => !f.type.includes('추가 제안')).slice(0, 12);
-    }
-
-    console.log(`📊 Generated ${feedbacks.length} contextual feedbacks for document`);
+    // 1. 전체 문서 분석 수행
+    const analyzer = new DocumentAnalyzer(genre, contentWithPositions);
+    const analysis = await analyzer.analyzeFullDocument();
+    
+    console.log(`📊 Document Analysis Complete:`);
+    console.log(`  - Quality Score: ${analysis.qualityScore}/10`);
+    console.log(`  - Student Level: ${analysis.studentLevel}`);
+    console.log(`  - Key Issues: ${analysis.keyIssues.length}`);
+    console.log(`  - Recommended Feedback Count: ${analysis.recommendedFeedbackCount}`);
+    
+    // 2. 분석 결과를 바탕으로 전략적 피드백 생성
+    const generator = new FeedbackGenerator(genre, analysis);
+    const strategicFeedbacks = await generator.generateStrategicFeedback();
+    
+    // 3. 피드백 포맷 변환 (GeneratedFeedback → 기존 포맷)
+    const feedbacks = strategicFeedbacks.map(feedback => ({
+      type: feedback.type,
+      content: feedback.content,
+      insert_at: feedback.insert_at
+    }));
+    
+    console.log(`✅ Generated ${feedbacks.length} strategic feedbacks based on full document analysis`);
+    
     return feedbacks;
   }
 
@@ -639,25 +385,40 @@ ${genre} 전체를 검토한 결과, 가장 중요한 핵심 메시지를 1-2줄
     // 타임아웃 설정 (15분)
     const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
     
+    console.log(`⏰ 백그라운드 작업 시작: ${jobId}, 타임아웃: ${TIMEOUT_MS / 1000}초`);
+    
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
+        console.log(`⏱️ 타임아웃 발생! Job ${jobId}가 ${TIMEOUT_MS / 1000}초를 초과했습니다.`);
         reject(new Error(`Document processing timed out after ${TIMEOUT_MS / 1000}s`));
       }, TIMEOUT_MS);
+      
+      // 타임아웃 ID 로깅
+      console.log(`⏲️ 타임아웃 타이머 설정됨: ${timeoutId}`);
     });
 
     // 즉시 백그라운드에서 처리 시작 (타임아웃과 race)
     Promise.race([
-      DocumentJobManager.processDocument(jobId),
+      DocumentJobManager.processDocument(jobId).then(() => {
+        console.log(`✅ Job ${jobId} 정상 완료됨 (타임아웃 전)`);
+      }),
       timeoutPromise
     ]).catch(async (error) => {
       console.error(`💥 Background processing error for job ${jobId}:`, error);
       
       try {
+        // 작업 상태 확인
+        const currentJob = await DocumentJobManager.getJob(jobId);
+        if (currentJob?.status === 'COMPLETED') {
+          console.log(`ℹ️ Job ${jobId}는 이미 완료됨, 에러 무시`);
+          return;
+        }
+        
         // 🔧 중요: 실패 상태를 데이터베이스에 기록
         await DocumentJobManager.updateJobStatus(jobId, {
           status: 'FAILED',
           error: error instanceof Error ? error.message : String(error),
-          currentStep: error.message?.includes('timed out') ? '처리 시간 초과' : '처리 중 오류 발생',
+          currentStep: error.message?.includes('timed out') ? '처리 시간 초과 (15분)' : '처리 중 오류 발생',
           completedAt: new Date()
         });
         console.log(`❌ Job ${jobId} marked as FAILED in database`);
