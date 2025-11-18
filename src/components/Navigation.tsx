@@ -18,6 +18,7 @@ export default function Navigation() {
   ];
 
   if (!session) return null;
+  if (pathname.startsWith('/chat')) return null;
 
   return (
     <nav className="bg-white border-b shadow-sm">

@@ -37,9 +37,6 @@ export default function ChatPage() {
                 <h1 className="text-xl font-bold text-white">
                   Pure Ocean
                 </h1>
-                <p className="text-sm text-white/80">
-                  {user?.name || user?.email} • {user?.role}
-                </p>
               </div>
             </div>
             <SignOutButton />

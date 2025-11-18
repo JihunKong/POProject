@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
     name: 'pure-ocean-app',
-    script: 'server-production.js',
+    script: 'server.js',
     instances: 1, // 복구용으로 1개 인스턴스만 시작
     exec_mode: 'cluster',
     env: {

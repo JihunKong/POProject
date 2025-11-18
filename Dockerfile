@@ -59,6 +59,9 @@ COPY --from=builder /app/prisma ./prisma
 # Create PM2 ecosystem file
 COPY ecosystem.config.js .
 
+# Create logs directory with proper permissions
+RUN mkdir -p logs && chown -R nextjs:nodejs logs
+
 USER nextjs
 
 EXPOSE 3000

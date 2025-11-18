@@ -7,10 +7,10 @@ export async function middleware(request: NextRequest) {
   const host = requestHeaders.get('host') || '';
   const proto = requestHeaders.get('x-forwarded-proto') || 'https';
   
-  // Force HTTPS in production only (exclude localhost and development)
-  if (process.env.NODE_ENV === 'production' && 
-      proto !== 'https' && 
-      !host.includes('localhost') && 
+  // Force HTTPS in production (Nginx will handle this, but keeping as backup)
+  if (process.env.NODE_ENV === 'production' &&
+      proto !== 'https' &&
+      !host.includes('localhost') &&
       !host.includes('127.0.0.1')) {
     return NextResponse.redirect(
       `https://${host}${request.nextUrl.pathname}${request.nextUrl.search}`,

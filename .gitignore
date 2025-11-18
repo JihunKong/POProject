@@ -52,3 +52,4 @@ deployment-secrets.md
 secrets.toml
 *.toml
 .env.docker
+*.tar.gz
