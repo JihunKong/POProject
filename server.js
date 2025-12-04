@@ -51,8 +51,8 @@ app.prepare().then(() => {
   // Socket.IO 서버 초기화 - 최신 베스트 프랙티스 적용
   const io = new IOServer(httpServer, {
     cors: {
-      origin: process.env.NODE_ENV === 'production' 
-        ? ['https://xn--ox6bo4n.com', 'https://www.xn--ox6bo4n.com'] 
+      origin: process.env.NODE_ENV === 'production'
+        ? ['https://xn--ox6bo4n.com', 'https://www.xn--ox6bo4n.com', 'https://pure-ocean-project-production.up.railway.app']
         : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000'],
       credentials: true,
       methods: ['GET', 'POST'],
@@ -104,7 +104,7 @@ app.prepare().then(() => {
       
       // 프로덕션에서는 origin 검증
       if (process.env.NODE_ENV === 'production') {
-        const allowedOrigins = ['https://xn--ox6bo4n.com', 'https://www.xn--ox6bo4n.com'];
+        const allowedOrigins = ['https://xn--ox6bo4n.com', 'https://www.xn--ox6bo4n.com', 'https://pure-ocean-project-production.up.railway.app'];
         if (origin && !allowedOrigins.includes(origin)) {
           console.warn('❌ Rejected connection from unauthorized origin:', origin);
           return callback(new Error('Unauthorized origin'), false);
