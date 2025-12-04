@@ -39,18 +39,18 @@
     "redis": "^4.7.0",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "prisma": "^6.0.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.2",
+    "tailwindcss": "^3.4.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.6",
     "@types/react-dom": "^19.0.3",
-    "autoprefixer": "^10.4.20",
     "eslint": "^9.18.0",
     "eslint-config-next": "15.5.2",
-    "postcss": "^8.5.2",
-    "prisma": "^6.0.1",
-    "tailwindcss": "^3.4.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }
