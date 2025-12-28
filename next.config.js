@@ -3,11 +3,11 @@ const nextConfig = {
   // Enable standalone output for Docker
   output: 'standalone',
   
-  // FORCE DISABLE ALL CACHING - 캐시 완전 비활성화
+  // Minimal caching - Next.js 16 requires static >= 30
   experimental: {
     staleTimes: {
       dynamic: 0,
-      static: 0,
+      static: 30,
     },
   },
   
