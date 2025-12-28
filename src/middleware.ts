@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { auth } from '@/lib/auth';
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const host = requestHeaders.get('host') || '';
   const proto = requestHeaders.get('x-forwarded-proto') || 'https';
-  
+
   // Force HTTPS in production (Nginx will handle this, but keeping as backup)
   if (process.env.NODE_ENV === 'production' &&
       proto !== 'https' &&
@@ -17,7 +16,7 @@ export async function middleware(request: NextRequest) {
       301
     );
   }
-  
+
   // Handle www subdomain redirect
   if (host.startsWith('www.')) {
     const newHost = host.replace('www.', '');
@@ -26,16 +25,9 @@ export async function middleware(request: NextRequest) {
       301
     );
   }
-  
-  // Check authentication for protected routes
-  const pathname = request.nextUrl.pathname;
-  if (pathname.startsWith('/chat') || pathname.startsWith('/api/chat')) {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-  }
-  
+
+  // Note: Authentication check moved to page/API level for Edge runtime compatibility
+
   // Add security headers
   const response = NextResponse.next();
   
