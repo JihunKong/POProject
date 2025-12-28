@@ -618,10 +618,25 @@ app.prepare().then(() => {
     console.log('🚀 Socket.IO server initialized with enhanced features (single instance)');
   }
 
-  httpServer.listen(port, (err) => {
+  httpServer.listen(port, async (err) => {
     if (err) throw err;
     console.log(`🌐 Server ready on http://${hostname}:${port}`);
     console.log(`🔌 WebSocket server ready on ws://${hostname}:${port}`);
+
+    // 서버 시작 후 비동기로 Prisma DB 스키마 동기화
+    if (process.env.NODE_ENV === 'production') {
+      console.log('🔄 Running prisma db push in background...');
+      const { exec } = require('child_process');
+      exec('npx prisma db push --accept-data-loss', { timeout: 60000 }, (error, stdout, stderr) => {
+        if (error) {
+          console.error('⚠️ Database sync warning:', error.message);
+          if (stderr) console.error('stderr:', stderr);
+        } else {
+          console.log('✅ Database schema synchronized successfully');
+          if (stdout) console.log(stdout);
+        }
+      });
+    }
   });
 
   // Graceful shutdown with WebSocket connection cleanup

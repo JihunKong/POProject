@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "node server.js",
     "dev:next": "next dev",
-    "build": "prisma generate && prisma db push && next build",
+    "build": "prisma generate && next build",
     "start": "NODE_ENV=production node server.js",
+    "db:sync": "npx prisma db push",
     "start:next": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
@@ -51,7 +52,12 @@
     "@types/react-dom": "^19.0.3",
     "eslint": "^9.18.0",
     "eslint-config-next": "15.5.2",
+    "eslint-import-resolver-typescript": "3.6.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
+  },
+  "overrides": {
+    "unrs-resolver": "npm:empty-npm-package@1.0.0",
+    "napi-postinstall": "npm:empty-npm-package@1.0.0"
   }
 }
